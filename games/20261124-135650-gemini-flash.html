@@ -925,9 +925,10 @@ const Game = {
     if (type === 0) {
       ctx.arc(0, 0, r, 0, Math.PI * 2);
     } else if (type === 1) {
-      ctx.moveTo(0, -r - 2);
-      ctx.lineTo(r * 1.1, r * 0.9);
-      ctx.lineTo(-r * 1.1, r * 0.9);
+      // キツネに合わせて下にとんがった三角にする
+      ctx.moveTo(0, r + 2);
+      ctx.lineTo(r * 1.1, -r * 0.9);
+      ctx.lineTo(-r * 1.1, -r * 0.9);
       ctx.closePath();
     } else if (type === 2) {
       this.roundRectPath(ctx, -r * 0.9, -r * 0.9, r * 1.8, r * 1.8, 6);
@@ -1002,7 +1003,7 @@ const Game = {
       ctx.fill();
 
     } else if (type === 1) {
-      // キツネ (三角・赤茶)
+      // キツネ (三角・赤茶、下向きのとんがり)
       ctx.fillStyle = '#451a03';
       ctx.beginPath();
       ctx.moveTo(-20, 2); ctx.lineTo(-14, -26); ctx.lineTo(-4, -6);
