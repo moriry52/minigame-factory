@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<title>ミニゲーム工場</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0d14;color:#e8ecfb;font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) 40px env(safe-area-inset-left)}
+header{padding:22px 16px 6px;max-width:1200px;margin:0 auto}
+h1{font-size:24px;letter-spacing:.02em}
+.sub{color:#8f9bc4;font-size:13px;margin-top:4px}
+.controls{max-width:1200px;margin:0 auto;padding:10px 16px;position:sticky;top:0;background:rgba(11,13,20,.92);
+  backdrop-filter:blur(6px);z-index:2;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.row::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid #2c3554;background:#141a2c;color:#c6cff0;border-radius:999px;padding:6px 12px;
+  font-size:13px;cursor:pointer;white-space:nowrap}
+.chip.on{background:#5b7cff;border-color:#5b7cff;color:#fff}
+.bar{display:flex;gap:8px;align-items:center}
+input[type=search]{flex:1;min-width:0;background:#141a2c;border:1px solid #2c3554;border-radius:10px;color:#e8ecfb;
+  padding:9px 12px;font-size:15px}
+select{background:#141a2c;border:1px solid #2c3554;border-radius:10px;color:#e8ecfb;padding:9px 8px;font-size:14px}
+main{max-width:1200px;margin:0 auto;padding:8px 16px;display:grid;gap:14px;
+  grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.card{background:#131828;border:1px solid #232b45;border-radius:14px;overflow:hidden;cursor:pointer;
+  display:flex;flex-direction:column;transition:transform .12s,border-color .12s}
+.card:hover{transform:translateY(-2px);border-color:#3d4a78}
+.thumb{aspect-ratio:4/3;background:#060810 center/cover no-repeat;position:relative}
+.thumb .new{position:absolute;top:8px;left:8px;background:#ff5a8a;color:#fff;font-size:11px;font-weight:800;
+  padding:2px 8px;border-radius:999px}
+.body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.title{font-weight:800;font-size:16px}
+.summary{font-size:13px;color:#aeb8de;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto}
+.tag{font-size:11px;padding:2px 7px;border-radius:6px;background:#1d2440;color:#9fb0ea}
+.tag.v{background:#203a3a;color:#8fe0d0}.tag.c{background:#3a2a40;color:#e5a9f0}.tag.m{background:#3a3420;color:#f0d79a}
+.sub a{color:#8fb0ff;margin-left:10px}
+@media (max-width:600px){main{grid-template-columns:repeat(2,1fr);gap:10px;padding:8px 12px}
+  .title{font-size:14px}.summary{font-size:12px}.body{padding:8px 9px 10px}.tag{font-size:10px}}
+.empty{grid-column:1/-1;text-align:center;color:#8f9bc4;padding:60px 0}
+dialog{border:0;padding:0;background:transparent;max-width:min(560px,94vw);width:100%;margin:auto;color:inherit}
+dialog::backdrop{background:rgba(3,4,10,.75)}
+.sheet{background:#151a2b;border:1px solid #2c3554;border-radius:18px;overflow:hidden;max-height:90vh;overflow-y:auto}
+.sheet .thumb{aspect-ratio:16/10}
+.sheet .in{padding:16px 18px 18px}
+.sheet h2{font-size:22px;margin-bottom:6px}
+.sheet p{font-size:14px;line-height:1.6;color:#c6cff0}
+.sec{margin-top:12px;background:#0e1220;border-radius:10px;padding:10px 12px}
+.sec b{display:block;font-size:12px;color:#8fa0d8;margin-bottom:4px}
+.sec ul{padding-left:1.2em;font-size:13px;line-height:1.7;color:#c6cff0}
+.meta{font-size:12px;color:#8f9bc4;margin-top:10px}
+.actions{display:flex;gap:8px;margin-top:14px}
+.btn{flex:1;text-align:center;padding:13px;border-radius:12px;background:#5b7cff;color:#fff;font-weight:800;
+  text-decoration:none;font-size:16px;border:0;cursor:pointer}
+.btn.sub{flex:none;background:#2c3554}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 ミニゲーム工場</h1>
+  <div class="sub"><span id="count"></span><a href="compare.html">📊 モデル比較</a></div>
+</header>
+<div class="controls">
+  <div class="bar">
+    <input type="search" id="q" placeholder="タイトル・説明で検索">
+    <select id="sort" aria-label="並び順">
+      <option value="new">新着順</option><option value="fun">AI評価順</option><option value="random">ランダム</option>
+    </select>
+  </div>
+  <div class="row" id="f1"></div>
+  <div class="row" id="f2"></div>
+  <div class="row" id="f3"></div>
+</div>
+<main id="list"></main>
+<dialog id="dlg"><div class="sheet" id="sheet"></div></dialog>
+<script type="application/json" id="data">[]</script>
+<script>
+const GAMES = JSON.parse(document.getElementById("data").textContent);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const state = { v: null, c: null, m: null, q: "", sort: "new", seed: Math.random() };
+GAMES.forEach((g) => { g.label = g.label || g.profile || "（不明）"; });
+const MULTI = new Set(GAMES.map((g) => g.label)).size > 1;
+try { Object.assign(state, JSON.parse(localStorage.getItem("mgf:index") || "{}"), { seed: Math.random() }); } catch (_) {}
+const save = () => { try { localStorage.setItem("mgf:index", JSON.stringify({ v: state.v, c: state.c, m: state.m, sort: state.sort })); } catch (_) {} };
+const NEWEST = GAMES.map((g) => g.created).sort().slice(-3);
+
+const val = (g, axis) => axis === "モデル" ? g.label : g.tags[axis];
+function chips(el, axis, key) {
+  const vals = [...new Set(GAMES.map((g) => val(g, axis)))];
+  el.innerHTML = [`<button class="chip ${state[key] ? "" : "on"}" data-v="">すべての${axis}</button>`]
+    .concat(vals.map((v) => `<button class="chip ${state[key] === v ? "on" : ""}" data-v="${esc(v)}">${esc(v)} <span style="opacity:.6">${GAMES.filter((g) => val(g, axis) === v).length}</span></button>`)).join("");
+  el.onclick = (e) => { const b = e.target.closest(".chip"); if (!b) return; state[key] = b.dataset.v || null; save(); render(); };
+}
+function hash(s) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) | 0; return h; }
+function render() {
+  chips($("f1"), "視点", "v"); chips($("f2"), "核", "c");
+  if (MULTI) chips($("f3"), "モデル", "m"); else $("f3").style.display = "none";
+  $("sort").value = state.sort;
+  const q = state.q.trim().toLowerCase();
+  let list = GAMES.filter((g) => (!state.v || g.tags["視点"] === state.v) && (!state.c || g.tags["核"] === state.c) && (!state.m || g.label === state.m)
+    && (!q || (g.title + g.summary + Object.values(g.tags).join(" ")).toLowerCase().includes(q)));
+  if (state.sort === "new") list.sort((a, b) => b.created.localeCompare(a.created));
+  else if (state.sort === "fun") list.sort((a, b) => (b.review?.fun_score || 0) - (a.review?.fun_score || 0));
+  else list.sort((a, b) => hash(a.id + state.seed) - hash(b.id + state.seed));
+  $("count").textContent = `全 ${GAMES.length} 本` + (list.length !== GAMES.length ? ` ／ 表示中 ${list.length} 本` : "");
+  $("list").innerHTML = list.length ? list.map((g) => `
+    <article class="card" data-id="${esc(g.id)}" tabindex="0">
+      <div class="thumb" style="background-image:url('games/${esc(g.id)}.png')">${NEWEST.includes(g.created) ? '<span class="new">NEW</span>' : ""}</div>
+      <div class="body">
+        <div class="title">${esc(g.title)}</div>
+        <div class="summary">${esc(g.summary)}</div>
+        <div class="tags"><span class="tag v">${esc(g.tags["視点"])}</span><span class="tag c">${esc(g.tags["核"])}</span>
+          ${g.tags["ひねり"] !== "なし" ? `<span class="tag">${esc(g.tags["ひねり"])}</span>` : ""}<span class="tag">${esc(g.tags["操作"])}</span>${MULTI ? `<span class="tag m">${esc(g.label)}</span>` : ""}</div>
+      </div>
+    </article>`).join("") : `<div class="empty">${GAMES.length ? "条件に合うゲームがありません" : "まだゲームがありません。run.py を実行するとここに並びます。"}</div>`;
+}
+function open(id) {
+  const g = GAMES.find((x) => x.id === id); if (!g) return;
+  const stars = g.review?.fun_score ? "★".repeat(g.review.fun_score) + "☆".repeat(5 - g.review.fun_score) : "";
+  $("sheet").innerHTML = `
+    <div class="thumb" style="background-image:url('games/${esc(g.id)}.png')"></div>
+    <div class="in">
+      <h2>${esc(g.title)}</h2>
+      <p>${esc(g.summary)}</p>
+      <div class="tags" style="margin-top:8px">${Object.entries(g.tags).map(([k, v]) => `<span class="tag" title="${esc(k)}">${esc(v)}</span>`).join("")}</div>
+      <div class="sec"><b>ルール</b><ul>${(g.rules || []).map((r) => `<li>${esc(r)}</li>`).join("")}</ul></div>
+      <div class="sec"><b>操作</b><ul><li>スマホ：${esc(g.controls?.["スマホ"])}</li><li>PC：${esc(g.controls?.["PC"])}</li></ul></div>
+      <div class="meta">プレイ時間 ${esc(g.playTime || "")} ・ 作成 ${esc(g.created.replace("T", " ").slice(0, 16))} ・ モデル ${esc(g.label)}${g.fixes ? `（修正${g.fixes}回）` : ""}${stars ? ` ・ AI評価 ${stars}` : ""}</div>
+      ${g.review?.comment ? `<div class="meta">AI講評：${esc(g.review.comment)}</div>` : ""}
+      <div class="actions"><a class="btn" href="games/${esc(g.id)}.html">▶ 遊ぶ</a><button class="btn sub" id="closeBtn">閉じる</button></div>
+    </div>`;
+  $("closeBtn").onclick = () => $("dlg").close();
+  $("dlg").showModal();
+}
+$("list").addEventListener("click", (e) => { const c = e.target.closest(".card"); if (c) open(c.dataset.id); });
+$("list").addEventListener("keydown", (e) => { const c = e.target.closest(".card"); if (c && e.key === "Enter") open(c.dataset.id); });
+$("dlg").addEventListener("click", (e) => { if (e.target === $("dlg")) $("dlg").close(); });
+$("q").addEventListener("input", (e) => { state.q = e.target.value; render(); });
+$("sort").addEventListener("change", (e) => { state.sort = e.target.value; state.seed = Math.random(); save(); render(); });
+render();
+</script>
+</body>
+</html>
