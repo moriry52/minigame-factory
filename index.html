@@ -81,7 +81,7 @@ dialog::backdrop{background:rgba(3,4,10,.75)}
 </div>
 <main id="list"></main>
 <dialog id="dlg"><div class="sheet" id="sheet"></div></dialog>
-<script type="application/json" id="data">[]</script>
+<script type="application/json" id="data">[{"id": "20261124-164406-gemini-flash", "title": "焦熱のプリン王", "summary": "四方から迫る焦げの壁を避けながら暴走するプリン王を撃破せよ！刻一刻と狭まる天板の上で戦うお菓子アクション。", "rules": ["十字キーで移動し、Aボタンで金平糖ショットを撃ってボスを攻撃します。", "時間が経つにつれて画面の四方からオーブンの熱で焦げた壁が迫り、足場が縮小します。", "焦げた外周に触れると継続ダメージ、ボスの攻撃に当たると即ダメージを受けます。", "制限時間（約60秒で足場が最小化）内にボスのHPを削り切れば勝利です。"], "controls": {"スマホ": "画面下の十字キーで8方向移動、Aボタンで金平糖ショットを向いている方向に連射します。", "PC": "矢印キーで8方向移動、Zキーで金平糖ショットを向いている方向に連射します。"}, "playTime": "約1分", "tags": {"視点": "全方向", "核": "アクション", "ひねり": "画面がだんだん狭くなる", "勝利条件": "ボス撃破", "操作": "仮想パッド", "テーマ": "お菓子", "プレイ時間": "約1分"}, "created": "2026-11-24T16:45:35", "fixes": 0, "batch": "20261124-164406", "mock": false, "profile": "gemini-flash", "label": "Gemini 3.8 Flash", "models": {"planner": "gemini-3.8-flash", "coder": "gemini-3.8-flash"}, "code_chars": 13785, "review": {"fun_score": 4, "comment": "プリンのボスとお菓子の世界観が可愛らしく表現されており、だんだんとステージが焦げて狭まっていく緊迫感とボスの多彩な攻撃（弾幕・ヒップアタック）が合わさって完成度の高いボスバトルになっています。", "by": "gemini-flash"}}]</script>
 <script>
 const GAMES = JSON.parse(document.getElementById("data").textContent);
 const $ = (id) => document.getElementById(id);
