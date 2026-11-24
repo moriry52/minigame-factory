@@ -7,6 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>もりのわくあわせ</title>
+<link rel="icon" type="image/png" href="../favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+<link rel="shortcut icon" href="../favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
+<link rel="manifest" href="../site.webmanifest" />
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
@@ -490,7 +495,7 @@ const Game = {
       { x: 460, y: 310, animal: null }
     ];
     for (let slot of this.stockSlots) {
-      slot.animal = this.createAnimal(slot.x, slot.y, this.api.util.randInt(0, 2));
+      slot.animal = this.createAnimal(slot.x, slot.y, this.api.util.randInt(0, 2), slot.x, slot.y);
     }
 
     // ドラッグ中の動物
@@ -504,13 +509,13 @@ const Game = {
     this.popups = [];
   },
 
-  createAnimal(x, y, type) {
+  createAnimal(x, y, type, homeX = x, homeY = y) {
     return {
       type: type, // 0: 丸(リス), 1: 三角(キツネ), 2: 四角(クマ)
       x: x,
       y: y,
-      homeX: x,
-      homeY: y,
+      homeX: homeX,
+      homeY: homeY,
       returning: false
     };
   },
@@ -654,7 +659,8 @@ const Game = {
     for (let i = 0; i < this.stockSlots.length; i++) {
       const slot = this.stockSlots[i];
       if (!slot.animal) {
-        slot.animal = this.createAnimal(slot.x, slot.y + 70, this.api.util.randInt(0, 2));
+        // 下から画面内の定位置(slot.y)へせり上がってくるように出現
+        slot.animal = this.createAnimal(slot.x, slot.y + 60, this.api.util.randInt(0, 2), slot.x, slot.y);
       }
       const a = slot.animal;
       if (a) {
