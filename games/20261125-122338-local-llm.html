@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>森の裏返しダッシュ</title>
+<link rel="icon" type="image/png" href="../favicon-96x96.png?v=6065284c" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="../favicon.svg?v=6065284c" />
+<link rel="shortcut icon" href="../favicon.ico?v=6065284c" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png?v=6065284c" />
+<link rel="manifest" href="../site.webmanifest?v=6065284c" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:none}
+#screen{display:block;background:#000;touch-action:none;image-rendering:auto}
+#hud{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:14px;font-weight:700;
+  text-shadow:0 1px 3px #000;pointer-events:none}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,6,12,.72);backdrop-filter:blur(2px);touch-action:none}
+#overlay.hidden{display:none}
+.panel{width:min(92%,420px);max-height:92%;overflow:auto;background:#151a2b;border:1px solid #2c3554;
+  border-radius:16px;padding:20px 18px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.panel h1{font-size:24px;margin-bottom:8px;letter-spacing:.02em}
+.panel h2{font-size:20px;margin-bottom:8px}
+.panel p{font-size:14px;line-height:1.6;color:#c9d0ea}
+.panel .box{margin:12px 0;padding:10px 12px;background:#0e1220;border-radius:10px;text-align:left}
+.panel .box b{display:block;font-size:12px;color:#8fa0d8;margin-bottom:4px}
+.panel ul{padding-left:1.2em;font-size:13px;line-height:1.6;color:#c9d0ea}
+.panel .score{font-size:40px;font-weight:800;margin:6px 0}
+.panel .best{font-size:13px;color:#8fa0d8}
+.btn{display:inline-block;margin:10px 6px 0;padding:12px 22px;border-radius:999px;border:0;
+  background:#5b7cff;color:#fff;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn.sub{background:#2c3554}
+.blink{animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.35}}
+#pad{display:none;height:190px;flex:none;position:relative;touch-action:none}
+#pad.show{display:block}
+.pbtn{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:rgba(120,140,220,.18);border:2px solid rgba(160,180,255,.35);color:#dfe6ff;
+  font-weight:800;font-size:18px;touch-action:none}
+.pbtn.on{background:rgba(120,150,255,.55)}
+.pbtn.dir{border-radius:14px;width:58px;height:58px;font-size:20px}
+.pbtn.act{width:78px;height:78px;font-size:15px;text-align:center;line-height:1.1;padding:4px}
+#topbar{flex:none;height:38px;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 8px}
+#topbar a,#topbar button{background:rgba(20,24,40,.7);border:1px solid #2c3554;color:#cfd7f5;font-size:13px;
+  padding:6px 10px;border-radius:999px;text-decoration:none;cursor:pointer}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="app">
+<div id="topbar">
+    <button id="muteBtn" type="button" aria-label="音のオン・オフ">🔊</button>
+    <button id="pauseBtn" type="button" aria-label="一時停止">⏸</button>
+    <a href="../index.html">一覧</a>
+  </div>
+  <div id="stage">
+    <canvas id="screen"></canvas>
+    <div id="hud"></div>
+    <div id="overlay"></div>
+  </div>
+  <div id="pad"></div>
+</div>
+<script type="application/json" id="meta">{"id": "20261125-122338-local-llm", "title": "森の裏返しダッシュ", "summary": "指でドラッグして3Dの森を駆け、葉の輪で重力を反転して床と天井の両方を走破する3分スコアアタック。", "rules": ["ドラッグでキツネを前後左右に動かす。", "床の上り葉や天井の下り葉に触れると重力が反転する。", "どんぐりを集めてスコア、トゲやタヌキに触れると減点と一瞬止まる。", "3分間、できるだけ多くのどんぐりを集める。", "重力反転後もドラッグの向きは画面基準のまま。"], "controls": {"スマホ": "指をドラッグして前後左右に移動。", "PC": "マウスドラッグまたは矢印キーで前後左右に移動。"}, "cfg": {"mode": "3d", "w": 360, "h": 640, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script type="module">
+import * as THREE from "three";
+"use strict";
+// ============================================================
+// ミニゲーム共通ランタイム（入力・画面サイズ・音・タイトル/結果画面）
+// ゲーム側は `const Game = { init(api), update(dt), draw(ctx) }` を定義するだけ。
+// ============================================================
+const META = JSON.parse(document.getElementById("meta").textContent);
+const CFG = META.cfg;                       // { mode:'2d'|'3d', w, h, scheme, buttons:[{key,label}] }
+const IS_TOUCH = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || ("ontouchstart" in window);
+const __G = (window.__GAME__ = { state: "boot", frame: 0, score: 0, errors: [], startedAt: 0, endedAt: 0, plays: 0 });
+window.addEventListener("error", (e) => __G.errors.push(String(e.message || e)));
+window.addEventListener("unhandledrejection", (e) => __G.errors.push(String(e.reason)));
+
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), canvas = $("screen"), overlay = $("overlay"), hudEl = $("hud"), padEl = $("pad");
+
+// ---------------- ユーティリティ ----------------
+const U = {
+  rand: (a = 0, b = 1) => a + Math.random() * (b - a),
+  randInt: (a, b) => Math.floor(a + Math.random() * (b - a + 1)),
+  choice: (arr) => arr[Math.floor(Math.random() * arr.length)],
+  clamp: (v, a, b) => (v < a ? a : v > b ? b : v),
+  lerp: (a, b, t) => a + (b - a) * t,
+  dist: (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1),
+  angle: (x1, y1, x2, y2) => Math.atan2(y2 - y1, x2 - x1),
+  rectHit: (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y,
+  circleHit: (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < (a.r + b.r) ** 2,
+  hsl: (h, s = 80, l = 60, a = 1) => `hsla(${h},${s}%,${l}%,${a})`,
+};
+
+// ---------------- 入力 ----------------
+// 押しっぱなし: left/right/up/down/a/b   押した瞬間: leftPressed ... aPressed/bPressed
+// pointer: {x,y,nx,ny,down,pressed,released,dx,dy}  (x,y はゲーム座標, nx,ny は -1..1)
+// swipe: 'left'|'right'|'up'|'down'|null （このフレームでスワイプがあった時だけ）
+// tap: このフレームで短いタップ/クリックがあったら true（pointer.x,y がその位置）
+const DIRS = ["left", "right", "up", "down"];
+const KEYMAP = {
+  ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
+  ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down",
+  KeyZ: "a", Space: "a", Enter: "a", KeyJ: "a", KeyX: "b", ShiftLeft: "b", ShiftRight: "b", KeyK: "b",
+};
+const Input = {
+  left: false, right: false, up: false, down: false, a: false, b: false,
+  leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, aPressed: false, bPressed: false,
+  pointer: { x: 0, y: 0, nx: 0, ny: 0, down: false, pressed: false, released: false, dx: 0, dy: 0 },
+  swipe: null, tap: false,
+  _key: {}, _pad: {}, _one: false, _prev: {}, _pulse: {}, _ptrPressed: false, _ptrReleased: false,
+  _dx: 0, _dy: 0, _swipe: null, _tap: false, _ignoreUntilUp: false,
+  _begin() {
+    for (const k of [...DIRS, "a", "b"]) {
+      const held = !!(this._key[k] || this._pad[k] || (k === "a" && this._one));
+      const pulse = !!this._pulse[k];
+      this[k] = held || pulse;
+      this[k + "Pressed"] = (held && !this._prev[k]) || pulse;
+      this._prev[k] = held;
+    }
+    this._pulse = {};
+    const p = this.pointer;
+    p.pressed = this._ptrPressed; p.released = this._ptrReleased; p.dx = this._dx; p.dy = this._dy;
+    this.swipe = this._swipe; this.tap = this._tap;
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+  },
+  _clear() {
+    this._key = {}; this._pad = {}; this._one = false; this._pulse = {};
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+    this.pointer.down = false;
+    for (const k of [...DIRS, "a", "b"]) this._prev[k] = false;
+    this._ignoreUntilUp = true;
+  },
+};
+
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); e.preventDefault(); return; }
+  if (e.code === "KeyM") { Sound.toggle(); return; }
+  const k = KEYMAP[e.code];
+  if (!k) return;
+  e.preventDefault();
+  Sound.unlock();
+  if (__G.state === "title" || __G.state === "over" || __G.state === "clear") {
+    if (k === "a" && !e.repeat && (__G.state === "title" || performance.now() - __G.endedAt > 700)) startGame();
+    return;
+  }
+  if (__G.paused) { if (k === "a" && !e.repeat) togglePause(false); return; }
+  Input._key[k] = true;
+});
+window.addEventListener("keyup", (e) => { const k = KEYMAP[e.code]; if (k) Input._key[k] = false; });
+window.addEventListener("blur", () => { Input._key = {}; });
+
+// ステージ上のポインタ（タッチ・マウス共通）
+let __viewRect = { left: 0, top: 0, width: 1, height: 1 };
+let __ptrStart = null;
+function __toGame(ev) {
+  const r = __viewRect;
+  const u = (ev.clientX - r.left) / r.width, v = (ev.clientY - r.top) / r.height;
+  return { x: u * __G.W, y: v * __G.H, nx: u * 2 - 1, ny: -(v * 2 - 1) };
+}
+let __activePtr = null;
+stage.addEventListener("pointerdown", (ev) => {
+  Sound.unlock();
+  if (__G.state !== "playing" || __G.paused) return;
+  if (__activePtr !== null && __activePtr !== ev.pointerId) return;
+  __activePtr = ev.pointerId;
+  try { stage.setPointerCapture(ev.pointerId); } catch (_) {}
+  Input._ignoreUntilUp = false;
+  const g = __toGame(ev);
+  Object.assign(Input.pointer, g, { down: true });
+  Input._ptrPressed = true;
+  __ptrStart = { x: ev.clientX, y: ev.clientY, t: performance.now(), gx: g.x, gy: g.y };
+  if (CFG.scheme === "ワンボタン") Input._one = true;
+  ev.preventDefault();
+});
+stage.addEventListener("pointermove", (ev) => {
+  if (ev.pointerId !== __activePtr) {
+    if (ev.pointerType === "mouse" && __activePtr === null) Object.assign(Input.pointer, __toGame(ev));
+    return;
+  }
+  const g = __toGame(ev);
+  Input._dx += g.x - Input.pointer.x; Input._dy += g.y - Input.pointer.y;
+  Object.assign(Input.pointer, g);
+});
+function __ptrEnd(ev) {
+  if (ev.pointerId !== __activePtr) return;
+  __activePtr = null;
+  Input.pointer.down = false;
+  Input._ptrReleased = true;
+  Input._one = false;
+  if (__ptrStart) {
+    const dx = ev.clientX - __ptrStart.x, dy = ev.clientY - __ptrStart.y;
+    const d = Math.hypot(dx, dy), dt = performance.now() - __ptrStart.t;
+    if (d > 28 && dt < 600) {
+      const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+      Input._swipe = dir;
+      if (CFG.scheme === "タップ/スワイプ") Input._pulse[dir] = true;
+    } else if (d <= 28 && dt < 500) {
+      Input._tap = true;
+      Input.pointer.x = __ptrStart.gx; Input.pointer.y = __ptrStart.gy;
+    }
+  }
+  __ptrStart = null;
+}
+stage.addEventListener("pointerup", __ptrEnd);
+stage.addEventListener("pointercancel", __ptrEnd);
+stage.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault());
+
+// 仮想パッド（タッチ端末 かつ 操作=仮想パッド のときだけ表示）
+function __buildPad() {
+  if (!(IS_TOUCH && CFG.scheme === "仮想パッド")) return;
+  padEl.classList.add("show");
+  const dirs = [["up", "▲", 66, 14], ["left", "◀", 8, 72], ["right", "▶", 124, 72], ["down", "▼", 66, 130]];
+  let html = "";
+  for (const [k, s, x, y] of dirs) html += `<div class="pbtn dir" data-btn="${k}" style="left:${x + 10}px;top:${y - 6}px">${s}</div>`;
+  const btns = (CFG.buttons && CFG.buttons.length ? CFG.buttons : [{ key: "A", label: "A" }]).slice(0, 2);
+  btns.forEach((b, i) => {
+    const right = i === 0 ? 18 : 108, top = i === 0 ? 60 : 92;
+    html += `<div class="pbtn act" data-btn="${b.key.toLowerCase()}" style="right:${right}px;top:${top - 20}px">${b.label || b.key}</div>`;
+  });
+  padEl.innerHTML = html;
+  const owner = {};
+  const refresh = () => {
+    const on = {};
+    for (const id in owner) if (owner[id]) on[owner[id]] = true;
+    Input._pad = on;
+    padEl.querySelectorAll(".pbtn").forEach((el) => el.classList.toggle("on", !!on[el.dataset.btn]));
+  };
+  const hit = (ev) => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return el && el.dataset && el.dataset.btn ? el.dataset.btn : null;
+  };
+  padEl.addEventListener("pointerdown", (ev) => {
+    Sound.unlock(); ev.preventDefault();
+    try { padEl.setPointerCapture(ev.pointerId); } catch (_) {}
+    if (__G.state !== "playing") { if (__G.state !== "boot") startGame(); return; }
+    if (__G.paused) { togglePause(false); return; }
+    owner[ev.pointerId] = hit(ev); refresh();
+  });
+  padEl.addEventListener("pointermove", (ev) => { if (ev.pointerId in owner) { owner[ev.pointerId] = hit(ev); refresh(); } });
+  const up = (ev) => { delete owner[ev.pointerId]; refresh(); };
+  padEl.addEventListener("pointerup", up);
+  padEl.addEventListener("pointercancel", up);
+}
+
+// ---------------- 音（Web Audio で合成。外部ファイル不要） ----------------
+const Sound = {
+  ctx: null, muted: false,
+  unlock() {
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { this.ctx = null; }
+  },
+  toggle() {
+    this.muted = !this.muted;
+    $("muteBtn").textContent = this.muted ? "🔇" : "🔊";
+    try { localStorage.setItem("mgf:mute", this.muted ? "1" : "0"); } catch (_) {}
+  },
+  // tone(周波数Hz, 長さ秒, 波形, 音量0-1, 終わりの周波数)
+  tone(freq = 440, dur = 0.1, type = "square", vol = 0.15, slideTo = null) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+    } catch (_) {}
+  },
+  noise(dur = 0.2, vol = 0.2) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const n = Math.floor(this.ctx.sampleRate * dur), buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+      const d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); g.gain.value = vol;
+      s.buffer = buf; s.connect(g).connect(this.ctx.destination); s.start();
+    } catch (_) {}
+  },
+  // 用意済みの効果音: shot hit explode jump coin powerup hurt select clear over
+  play(name) {
+    const P = {
+      shot: () => this.tone(880, 0.07, "square", 0.08, 440),
+      hit: () => this.tone(220, 0.08, "square", 0.12, 110),
+      explode: () => this.noise(0.35, 0.25),
+      jump: () => this.tone(300, 0.15, "triangle", 0.18, 700),
+      coin: () => { this.tone(988, 0.06, "square", 0.1); setTimeout(() => this.tone(1319, 0.12, "square", 0.1), 60); },
+      powerup: () => this.tone(400, 0.3, "triangle", 0.18, 1200),
+      hurt: () => this.tone(200, 0.25, "sawtooth", 0.15, 60),
+      select: () => this.tone(660, 0.05, "square", 0.08),
+      clear: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, "triangle", 0.18), i * 110)),
+      over: () => [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, "triangle", 0.18), i * 180)),
+    };
+    (P[name] || P.select)();
+  },
+};
+try { if (localStorage.getItem("mgf:mute") === "1") Sound.toggle(); } catch (_) {}
+
+// ---------------- 画面サイズ ----------------
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+let ctx2d = null, R3 = null;
+function __layout() {
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  if (CFG.mode === "3d") {
+    const ar = CFG.w / CFG.h;
+    let w = sw, h = sw / ar;
+    if (h > sh) { h = sh; w = sh * ar; }
+    canvas.style.width = w + "px"; canvas.style.height = h + "px";
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (R3) { R3.renderer.setSize(w, h, false); if (api.camera && api.camera.isPerspectiveCamera) { api.camera.aspect = ar; api.camera.updateProjectionMatrix(); } }
+  } else {
+    const s = Math.min(sw / CFG.w, sh / CFG.h);
+    canvas.style.width = CFG.w * s + "px"; canvas.style.height = CFG.h * s + "px";
+    canvas.width = Math.round(CFG.w * s * DPR); canvas.height = Math.round(CFG.h * s * DPR);
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (ctx2d) { ctx2d.setTransform(canvas.width / CFG.w, 0, 0, canvas.height / CFG.h, 0, 0); ctx2d.imageSmoothingEnabled = true; }
+  }
+  __viewRect = canvas.getBoundingClientRect();
+}
+window.addEventListener("resize", () => setTimeout(__layout, 50));
+window.addEventListener("orientationchange", () => setTimeout(__layout, 200));
+
+// ---------------- ゲームに渡す api ----------------
+const api = {
+  W: CFG.w, H: CFG.h, input: Input, sound: Sound, util: U, isTouch: IS_TOUCH,
+  ctx: null,                               // 2D: CanvasRenderingContext2D
+  THREE: null, scene: null, camera: null, renderer: null,   // 3D のみ
+  time: 0,                                 // プレイ開始からの秒数
+  get score() { return __G.score; },
+  setScore(n) { __G.score = Math.floor(n) || 0; },
+  addScore(n) { __G.score = Math.floor(__G.score + n) || 0; },
+  gameOver() { __endGame("over"); },
+  clear() { __endGame("clear"); },
+  hud(text) { hudEl.textContent = text == null ? "" : String(text); },
+};
+
+// ---------------- 画面（タイトル / 結果 / 一時停止） ----------------
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function __best() { try { return +localStorage.getItem("mgf:best:" + META.id) || 0; } catch (_) { return 0; } }
+function __saveBest(s) { try { if (s > __best()) localStorage.setItem("mgf:best:" + META.id, s); } catch (_) {} }
+const START_HINT = IS_TOUCH ? "画面をタップしてスタート" : "クリック / スペースキーでスタート";
+
+function __showTitle() {
+  const ctl = (META.controls || {})[IS_TOUCH ? "スマホ" : "PC"] || "";
+  const rules = (META.rules || []).map((r) => `<li>${esc(r)}</li>`).join("");
+  overlay.innerHTML = `<div class="panel">
+    <h1>${esc(META.title)}</h1><p>${esc(META.summary)}</p>
+    <div class="box"><b>ルール</b><ul>${rules}</ul></div>
+    <div class="box"><b>操作（${IS_TOUCH ? "スマホ" : "PC"}）</b><p>${esc(ctl)}</p></div>
+    ${__best() ? `<p class="best">ベスト: ${__best()}</p>` : ""}
+    <p class="blink" style="margin-top:10px;font-weight:700">${START_HINT}</p></div>`;
+  overlay.classList.remove("hidden");
+  __G.state = "title";
+}
+function __showResult(kind) {
+  const best = __best();
+  overlay.innerHTML = `<div class="panel">
+    <h2>${kind === "clear" ? "クリア！" : "ゲームオーバー"}</h2>
+    <div class="score">${__G.score}</div>
+    <p class="best">ベスト: ${best}</p>
+    <div><button class="btn" id="retryBtn" type="button">もう一度</button>
+    <a class="btn sub" href="../index.html">一覧へ</a></div></div>`;
+  overlay.classList.remove("hidden");
+  $("retryBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(); });
+}
+overlay.addEventListener("pointerup", (ev) => {
+  if (ev.target.closest && ev.target.closest("a,button")) return;
+  Sound.unlock();
+  if (__G.state === "title") startGame();
+  else if (__G.paused) togglePause(false);
+});
+
+function togglePause(force) {
+  if (__G.state !== "playing") return;
+  const p = typeof force === "boolean" ? force : !__G.paused;
+  __G.paused = p;
+  if (p) {
+    overlay.innerHTML = `<div class="panel"><h2>一時停止中</h2><p class="blink">${IS_TOUCH ? "タップで再開" : "クリック / スペースで再開"}</p></div>`;
+    overlay.classList.remove("hidden");
+    Input._clear();
+  } else {
+    overlay.classList.add("hidden");
+    __last = performance.now();
+  }
+}
+$("pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); togglePause(); });
+$("muteBtn").addEventListener("click", (e) => { e.stopPropagation(); Sound.unlock(); Sound.toggle(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) togglePause(true); });
+
+// ---------------- 進行 ----------------
+let GAME = null, __last = 0;
+function __fail(where, e) {
+  console.error(e);
+  __G.errors.push(`${where}: ${e && e.message ? e.message : e}`);
+  __G.state = "error";
+  overlay.innerHTML = `<div class="panel"><h2>エラーが発生しました</h2><p>${esc(e && e.message ? e.message : e)}</p></div>`;
+  overlay.classList.remove("hidden");
+}
+function __init3D() {
+  if (R3) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(DPR);
+  R3 = { renderer };
+  api.THREE = THREE; api.renderer = renderer;
+}
+function startGame() {
+  if (!GAME) return;
+  Input._clear();
+  __G.score = 0; __G.frame = 0; __G.paused = false; __G.plays++;
+  api.time = 0; api.hud("");
+  if (CFG.mode === "3d") {
+    api.scene = new THREE.Scene();
+    api.camera = new THREE.PerspectiveCamera(60, CFG.w / CFG.h, 0.1, 1000);
+    api.camera.position.set(0, 5, 10); api.camera.lookAt(0, 0, 0);
+  }
+  try { GAME.init(api); } catch (e) { return __fail("init", e); }
+  __layout();
+  overlay.classList.add("hidden");
+  __G.state = "playing"; __G.startedAt = performance.now();
+  __last = performance.now();
+}
+function __endGame(kind) {
+  if (__G.state !== "playing") return;
+  __G.state = kind; __G.endedAt = performance.now();
+  __saveBest(__G.score);
+  Sound.play(kind === "clear" ? "clear" : "over");
+  setTimeout(() => __showResult(kind), 500);
+}
+function __frame(now) {
+  requestAnimationFrame(__frame);
+  if (__G.state !== "playing" || __G.paused) {
+    if (CFG.mode === "3d" && R3 && api.scene && api.camera) R3.renderer.render(api.scene, api.camera);
+    return;
+  }
+  const dt = Math.min(0.05, Math.max(0, (now - __last) / 1000));
+  __last = now;
+  api.time += dt;
+  try {
+    Input._begin();
+    GAME.update(dt);
+    if (__G.state === "error") return;
+    if (CFG.mode === "3d") R3.renderer.render(api.scene, api.camera);
+    else if (GAME.draw) { ctx2d.save(); GAME.draw(ctx2d); ctx2d.restore(); }
+    __G.frame++;
+    if (!Number.isFinite(__G.score)) throw new Error("score が数値ではありません");
+  } catch (e) { __fail("update/draw", e); }
+}
+function __boot(game) {
+  GAME = game;
+  if (!GAME || typeof GAME.init !== "function" || typeof GAME.update !== "function") {
+    return __fail("boot", new Error("Game オブジェクト（init / update）が定義されていません"));
+  }
+  try {
+    if (CFG.mode === "3d") { __init3D(); }
+    else { ctx2d = canvas.getContext("2d"); api.ctx = ctx2d; }
+  } catch (e) { return __fail("boot", e); }
+  __buildPad();
+  __layout();
+  if (CFG.mode !== "3d") { ctx2d.fillStyle = "#000"; ctx2d.fillRect(0, 0, CFG.w, CFG.h); }
+  __showTitle();
+  requestAnimationFrame(__frame);
+}
+
+// ===== ここからゲーム固有のコード =====
+const Game = {
+  // ================= 音声（WebAudio 簡易シンセ） =================
+  ac: null,
+  _audio() {
+    if (!this.ac) {
+      try {
+        const Ctx = (typeof window !== 'undefined') && (window.AudioContext || window.webkitAudioContext);
+        if (Ctx) this.ac = new Ctx();
+      } catch (e) { this.ac = null; }
+    }
+    if (this.ac) { try { if (this.ac.state === 'suspended') this.ac.resume(); } catch (e) {} }
+    return this.ac;
+  },
+  tone(f, dur, type, vol, delay, slide) {
+    const ac = this._audio(); if (!ac) return;
+    try {
+      const t0 = ac.currentTime + (delay || 0);
+      const o = ac.createOscillator(), gn = ac.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(Math.max(1, f), t0);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(1, slide), t0 + dur);
+      gn.gain.setValueAtTime(0.0001, t0);
+      gn.gain.linearRampToValueAtTime(vol || 0.15, t0 + 0.012);
+      gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(gn); gn.connect(ac.destination);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    } catch (e) {}
+  },
+  noiseBurst(dur, vol, delay, freq, q) {
+    const ac = this._audio(); if (!ac) return;
+    try {
+      const t0 = ac.currentTime + (delay || 0);
+      const n = Math.max(1, Math.floor(ac.sampleRate * dur));
+      const buf = ac.createBuffer(1, n, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const src = ac.createBufferSource(); src.buffer = buf;
+      const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq || 700; f.Q.value = q || 1;
+      const gn = ac.createGain();
+      gn.gain.setValueAtTime(vol || 0.1, t0);
+      gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.connect(f); f.connect(gn); gn.connect(ac.destination);
+      src.start(t0); src.stop(t0 + dur + 0.02);
+    } catch (e) {}
+  },
+  sfx(name) {
+    try {
+      switch (name) {
+        case 'step': this.noiseBurst(0.05, 0.025, 0, 480, 2); break;
+        case 'acorn': this.tone(920, 0.07, 'sine', 0.16, 0, 1600); break;
+        case 'flip':
+          this.noiseBurst(0.3, 0.1, 0, 850, 0.7);
+          this.tone(523, 0.12, 'triangle', 0.1, 0.1);
+          this.tone(784, 0.18, 'triangle', 0.1, 0.2);
+          break;
+        case 'hit':
+          this.tone(150, 0.18, 'sine', 0.28, 0, 55);
+          this.noiseBurst(0.12, 0.14, 0, 240, 1);
+          break;
+        case 'combo':
+          this.tone(523, 0.08, 'triangle', 0.1, 0);
+          this.tone(659, 0.08, 'triangle', 0.1, 0.07);
+          this.tone(784, 0.14, 'triangle', 0.1, 0.14);
+          break;
+        case 'tick': this.tone(1150, 0.05, 'sine', 0.1); break;
+        case 'end':
+          [659, 784, 988, 1319].forEach((f, i) => this.tone(f, 0.5, 'triangle', 0.12, i * 0.16));
+          break;
+      }
+    } catch (e) {}
+  },
+
+  // ================= 初期化 =================
+  init(api) {
+    this.api = api;
+    const T = api.THREE;
+    const scene = api.scene;
+
+    // ---------- 状態 ----------
+    this.g = {
+      t: 0, remaining: 180, over: false,
+      score: 0, acorns: 0, combo: 0, mult: 1, maxCombo: 0,
+      stage: 0, shake: 0, stepT: 0, lastHud: '', lastTick: 999,
+    };
+    this.p = {
+      x: 0, z: 1.5, y: 0.5, side: 0,
+      flipT: 1, flipFrom: 0, flipTo: 0,
+      angle: 0, inv: 3, leafCd: 0,
+    };
+
+    // ---------- カメラ（森の中の3/4アングル。aspect はランタイム/キャンバスに合わせる） ----------
+    const cam0 = api.camera;
+    cam0.fov = 70;
+    cam0.near = 0.5;
+    cam0.far = 120;
+    cam0.updateProjectionMatrix();
+    cam0.position.set(0, 9.2, 11.2);
+    cam0.lookAt(0, 1.6, -0.7);
+
+    // ---------- 背景 / 霧 / ライト ----------
+    scene.background = new T.Color(0x0d2b23);
+    this.fog = new T.Fog(0x0d2b23, 20, 48);
+    scene.fog = this.fog;
+
+    scene.add(new T.HemisphereLight(0xbfe8ff, 0x3a2a18, 0.95));
+    const dir = new T.DirectionalLight(0xfff1d6, 1.15);
+    dir.position.set(7, 15, 9);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(1024, 1024);
+    dir.shadow.camera.left = -12;
+    dir.shadow.camera.right = 12;
+    dir.shadow.camera.top = 14;
+    dir.shadow.camera.bottom = -14;
+    dir.shadow.camera.near = 2;
+    dir.shadow.camera.far = 45;
+    scene.add(dir);
+    const fill = new T.PointLight(0xbfe8ff, 0.5, 45);
+    fill.position.set(0, 3.5, 0);
+    scene.add(fill);
+
+    // ---------- 共有ジオメトリ / マテリアル ----------
+    this.geo = {
+      box: new T.BoxGeometry(1, 1, 1),
+      sphere: new T.SphereGeometry(1, 18, 12),
+      cone: new T.ConeGeometry(1, 1, 10),
+      cyl: new T.CylinderGeometry(1, 1, 1, 12),
+      torus: new T.TorusGeometry(1, 0.09, 8, 26),
+      circle: new T.CircleGeometry(1, 18),
+    };
+    const M = (c, o) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85 }, o || {}));
+    this.mat = {
+      floor: M(0x7a5230, { roughness: 0.95 }),
+      patchA: M(0x6a4527, { roughness: 1 }),
+      patchB: M(0x8a6136, { roughness: 1 }),
+      wall: M(0x16382b, { roughness: 0.95 }),
+      trunk: M(0x5d4027),
+      leaf: M(0x2f8f4e),
+      leafDark: M(0x256b3c),
+      canopy: M(0x2f7a3c, { roughness: 0.9 }),
+      canopyDark: M(0x245c2e, { roughness: 0.9 }),
+      grass: M(0x4fae5c),
+      rock: M(0x78807a, { roughness: 0.95 }),
+      mushCap: M(0xc04a30, { roughness: 0.6 }),
+      mushStem: M(0xe6d9c2, { roughness: 0.8 }),
+      acorn: M(0xe8862a, { roughness: 0.45, metalness: 0.15 }),
+      acornCap: M(0x6b4423),
+      leafCyan: M(0x35d6d0, { emissive: 0x0a4a48, emissiveIntensity: 0.7, roughness: 0.4 }),
+      leafGold: M(0xf2c94c, { emissive: 0x5a4208, emissiveIntensity: 0.5, roughness: 0.4 }),
+      log: M(0x6b4a2f),
+      thorn: M(0x9c3d2b, { roughness: 0.55 }),
+      tanuki: M(0x9a7a52),
+      tanukiDark: M(0x4a3623),
+      fox: M(0xe8722a, { roughness: 0.55 }),
+      foxWhite: M(0xf5ead8),
+      foxDark: M(0x33221a),
+      glow: new T.MeshBasicMaterial({ color: 0x35d6d0, transparent: true, opacity: 0.16, side: T.DoubleSide, depthWrite: false }),
+      firefly: new T.MeshBasicMaterial({ color: 0xfff3a0, transparent: true, opacity: 0.8, blending: T.AdditiveBlending, depthWrite: false }),
+    };
+
+    // ---------- アリーナ（幅12・奥18・高6） ----------
+    const mk = (geo, mat, sx, sy, sz, x, y, z, recv) => {
+      const m = new T.Mesh(geo, mat);
+      m.scale.set(sx, sy, sz);
+      m.position.set(x, y, z);
+      if (recv) m.receiveShadow = true;
+      scene.add(m);
+      return m;
+    };
+    mk(this.geo.box, this.mat.floor, 12, 0.4, 18, 0, -0.2, 0, true);
+    // 壁は低めにして、向こう側の森が覗くように
+    mk(this.geo.box, this.mat.wall, 12.8, 4.2, 0.5, 0, 2.1, -9.35);
+    mk(this.geo.box, this.mat.wall, 0.5, 5.0, 18.8, -6.35, 2.5, 0);
+    mk(this.geo.box, this.mat.wall, 0.5, 5.0, 18.8, 6.35, 2.5, 0);
+    mk(this.geo.box, this.mat.wall, 12.8, 1.2, 0.5, 0, 0.6, 9.35);
+
+    // 天井（裏返した森の冠層）：上面を向く葉の塊＋ツタ。
+    // 厚い箱にすると上からのカメラが遮られるため、薄い円盤の集まりにする。
+    for (let i = 0; i < 14; i++) {
+      const pc = new T.Mesh(this.geo.circle, i % 2 ? this.mat.canopyDark : this.mat.canopy);
+      pc.rotation.x = -Math.PI / 2;
+      pc.scale.setScalar(0.7 + Math.random() * 0.8);
+      pc.position.set((Math.random() * 2 - 1) * 4.8, 6.35, (Math.random() * 2 - 1) * 7.8);
+      pc.castShadow = true;
+      scene.add(pc);
+    }
+    for (let i = 0; i < 10; i++) {
+      const vn = new T.Mesh(this.geo.cyl, this.mat.leafDark);
+      const len = 0.4 + Math.random() * 0.5;
+      vn.scale.set(0.045, len, 0.045);
+      vn.position.set((Math.random() * 2 - 1) * 5.4, 6.35 - len / 2, (Math.random() * 2 - 1) * 8.4);
+      vn.castShadow = true;
+      scene.add(vn);
+    }
+
+    // 外周の森（遠くの木は大きく、背景の森の輪郭にする）
+    const treePos = [[-8, -11], [8, -11], [-8, 0], [8, 0], [-8, 11], [8, 11], [0, -12.5], [0, 12.5]];
+    for (const tp of treePos) {
+      const s = (tp[1] < -9 ? 1.25 : 0.9) + Math.random() * 0.5;
+      const g = new T.Group();
+      const trunk = new T.Mesh(this.geo.cyl, this.mat.trunk);
+      trunk.scale.set(0.25 * s, 1.6 * s, 0.25 * s);
+      trunk.position.y = 0.8 * s;
+      trunk.castShadow = true;
+      g.add(trunk);
+      const c1 = new T.Mesh(this.geo.cone, this.mat.leaf);
+      c1.scale.set(1.3 * s, 1.8 * s, 1.3 * s);
+      c1.position.y = 2.2 * s;
+      g.add(c1);
+      const c2 = new T.Mesh(this.geo.cone, this.mat.leafDark);
+      c2.scale.set(0.95 * s, 1.3 * s, 0.95 * s);
+      c2.position.y = 3.1 * s;
+      g.add(c2);
+      g.position.set(tp[0], 0, tp[1]);
+      scene.add(g);
+    }
+    // 床の斑（地面に奥行きを出す）
+    for (let i = 0; i < 9; i++) {
+      const pc = new T.Mesh(this.geo.circle, i % 2 ? this.mat.patchA : this.mat.patchB);
+      pc.rotation.x = -Math.PI / 2;
+      pc.scale.setScalar(0.6 + Math.random() * 0.8);
+      pc.position.set((Math.random() * 2 - 1) * 5, 0.02, (Math.random() * 2 - 1) * 8.2);
+      pc.receiveShadow = true;
+      scene.add(pc);
+    }
+    // 床の草と岩
+    for (let i = 0; i < 16; i++) {
+      const gr = new T.Mesh(this.geo.cone, this.mat.grass);
+      gr.scale.set(0.14, 0.3, 0.14);
+      gr.position.set((Math.random() * 2 - 1) * 5.2, 0.15, (Math.random() * 2 - 1) * 8.2);
+      scene.add(gr);
+    }
+    for (let i = 0; i < 5; i++) {
+      const rk = new T.Mesh(this.geo.sphere, this.mat.rock);
+      const rs = 0.18 + Math.random() * 0.15;
+      rk.scale.set(rs, rs * 0.7, rs);
+      rk.position.set((Math.random() * 2 - 1) * 5, 0.1, (Math.random() * 2 - 1) * 8);
+      scene.add(rk);
+    }
+    // きのこ
+    for (let i = 0; i < 6; i++) {
+      const g = new T.Group();
+      const st = new T.Mesh(this.geo.cyl, this.mat.mushStem);
+      st.scale.set(0.05, 0.14, 0.05);
+      st.position.y = 0.07;
+      g.add(st);
+      const cp = new T.Mesh(this.geo.sphere, this.mat.mushCap);
+      cp.scale.set(0.13, 0.1, 0.13);
+      cp.position.y = 0.16;
+      cp.castShadow = true;
+      g.add(cp);
+      g.position.set((Math.random() * 2 - 1) * 5.1, 0, (Math.random() * 2 - 1) * 8.1);
+      scene.add(g);
+    }
+
+    // ---------- 自機キツネ ----------
+    const fox = new T.Group();
+    fox.rotation.order = 'YXZ';
+    const body = new T.Mesh(this.geo.sphere, this.mat.fox);
+    body.scale.set(0.5, 0.46, 0.58);
+    body.castShadow = true;
+    fox.add(body);
+    const head = new T.Mesh(this.geo.sphere, this.mat.fox);
+    head.scale.setScalar(0.3);
+    head.position.set(0, 0.2, 0.4);
+    head.castShadow = true;
+    fox.add(head);
+    const snout = new T.Mesh(this.geo.sphere, this.mat.foxWhite);
+    snout.scale.set(0.15, 0.11, 0.17);
+    snout.position.set(0, 0.13, 0.62);
+    fox.add(snout);
+    const nose = new T.Mesh(this.geo.sphere, this.mat.foxDark);
+    nose.scale.setScalar(0.05);
+    nose.position.set(0, 0.16, 0.74);
+    fox.add(nose);
+    for (const s of [-1, 1]) {
+      const ear = new T.Mesh(this.geo.cone, this.mat.fox);
+      ear.scale.set(0.12, 0.24, 0.12);
+      ear.position.set(0.16 * s, 0.44, 0.34);
+      ear.rotation.z = -0.3 * s;
+      fox.add(ear);
+      const eye = new T.Mesh(this.geo.sphere, this.mat.foxDark);
+      eye.scale.setScalar(0.05);
+      eye.position.set(0.15 * s, 0.24, 0.58);
+      fox.add(eye);
+    }
+    const tail = new T.Mesh(this.geo.cone, this.mat.fox);
+    tail.scale.set(0.17, 0.55, 0.17);
+    tail.position.set(0, 0.05, -0.55);
+    tail.rotation.x = -1.25;
+    fox.add(tail);
+    const tip = new T.Mesh(this.geo.sphere, this.mat.foxWhite);
+    tip.scale.setScalar(0.13);
+    tip.position.set(0, 0.14, -0.8);
+    fox.add(tip);
+    this.foxBase = 1.12;
+    fox.scale.setScalar(this.foxBase);
+    scene.add(fox);
+    this.fox = fox;
+
+    // ---------- 重力葉（床2・天井2） ----------
+    this.leaves = [];
+    const leafDefs = [[-3.6, 0, -3.2], [3.6, 0, 3.2], [-3.6, 1, 3.2], [3.6, 1, -3.2]];
+    for (const d of leafDefs) {
+      const g = new T.Group();
+      const ring = new T.Mesh(this.geo.torus, this.mat.leafCyan);
+      ring.scale.setScalar(0.9);
+      ring.rotation.x = Math.PI / 2;
+      g.add(ring);
+      const disc = new T.Mesh(this.geo.circle, this.mat.glow);
+      disc.rotation.x = d[1] === 0 ? -Math.PI / 2 : Math.PI / 2;
+      disc.scale.setScalar(0.9);
+      g.add(disc);
+      const fan = new T.Group();
+      for (let i = 0; i < 4; i++) {
+        const holder = new T.Group();
+        holder.rotation.y = i * Math.PI / 2;
+        const bl = new T.Mesh(this.geo.box, this.mat.leafGold);
+        bl.scale.set(0.5, 0.05, 0.2);
+        bl.position.set(0.42, 0, 0);
+        holder.add(bl);
+        fan.add(holder);
+      }
+      g.add(fan);
+      g.position.set(d[0], d[1] === 0 ? 0.28 : 5.72, d[2]);
+      scene.add(g);
+      this.leaves.push({ g, fan, x: d[0], z: d[2], side: d[1] });
+    }
+
+    // ---------- どんぐり ----------
+    this.acornList = [];
+    for (let i = 0; i < 8; i++) {
+      const g = new T.Group();
+      const b = new T.Mesh(this.geo.sphere, this.mat.acorn);
+      b.scale.set(0.24, 0.3, 0.24);
+      b.position.y = -0.06;
+      b.castShadow = true;
+      g.add(b);
+      const cap = new T.Mesh(this.geo.cyl, this.mat.acornCap);
+      cap.scale.set(0.28, 0.13, 0.28);
+      cap.position.y = 0.14;
+      g.add(cap);
+      const stem = new T.Mesh(this.geo.cyl, this.mat.acornCap);
+      stem.scale.set(0.035, 0.09, 0.035);
+      stem.position.y = 0.25;
+      g.add(stem);
+      scene.add(g);
+      this.acornList.push({ g, x: 0, z: 0, side: 0, spawn: 1, phase: Math.random() * 6.28 });
+    }
+    for (const a of this.acornList) this.spawnAcorn(a);
+
+    // ---------- 障害物 ----------
+    this.obs = [];
+    this.setStage(1);
+
+    // ---------- ホタル（雰囲気用） ----------
+    this.fireflies = [];
+    for (let i = 0; i < 9; i++) {
+      const m = new T.Mesh(this.geo.sphere, this.mat.firefly);
+      m.scale.setScalar(0.07);
+      const bx = (Math.random() * 2 - 1) * 4.4;
+      const by = 1.2 + Math.random() * 3.4;
+      const bz = (Math.random() * 2 - 1) * 7.2;
+      m.position.set(bx, by, bz);
+      scene.add(m);
+      this.fireflies.push({ m, bx, by, bz, ph: Math.random() * 6.28 });
+    }
+
+    try { api.setScore(0); api.hud('🦊0  ⏱3:00  x1'); } catch (e) {}
+  },
+
+  // ================= 画面aspect同期（PCの横長キャンバスで引き伸ばし/はみ出しを防ぐ） =================
+  _syncAspect() {
+    try {
+      const cam = this.api && this.api.camera;
+      if (typeof document === 'undefined' || !cam) return;
+      const cv = document.querySelector('canvas');
+      if (cv && cv.clientWidth > 4 && cv.clientHeight > 4) {
+        const a = cv.clientWidth / cv.clientHeight;
+        if (Math.abs(a - cam.aspect) > 0.02) {
+          cam.aspect = a;
+          cam.updateProjectionMatrix();
+        }
+      }
+    } catch (e) {}
+  },
+
+  // ================= スポーン =================
+  spawnAcorn(a) {
+    let x = 0, z = 0;
+    for (let i = 0; i < 12; i++) {
+      x = (Math.random() * 2 - 1) * 5.1;
+      z = (Math.random() * 2 - 1) * 8;
+      if ((x - this.p.x) ** 2 + (z - this.p.z) ** 2 > 2.25) break;
+    }
+    a.x = x; a.z = z;
+    a.side = Math.random() < 0.62 ? 1 - this.p.side : this.p.side; // 反対面に6割増し
+    a.spawn = 0;
+  },
+  randObsPos(minD) {
+    for (let i = 0; i < 24; i++) {
+      const x = (Math.random() * 2 - 1) * 4.8;
+      const z = (Math.random() * 2 - 1) * 7.4;
+      let ok = (x - this.p.x) ** 2 + (z - this.p.z) ** 2 > minD * minD;
+      if (ok) {
+        for (const L of this.leaves) {
+          if ((x - L.x) ** 2 + (z - L.z) ** 2 < 4.5) { ok = false; break; }
+        }
+      }
+      if (ok) return [x, z];
+    }
+    return [4.6, -7.2];
+  },
+  makeLog(x, z, side) {
+    const T = this.api.THREE;
+    const g = new T.Group();
+    const log = new T.Mesh(this.geo.cyl, this.mat.log);
+    log.scale.set(0.4, 1.5, 0.4);
+    log.rotation.z = Math.PI / 2;
+    log.castShadow = true;
+    g.add(log);
+    const cap = new T.Mesh(this.geo.cyl, this.mat.log);
+    cap.scale.set(0.4, 0.06, 0.4);
+    cap.rotation.z = Math.PI / 2;
+    cap.position.x = 0.76;
+    g.add(cap);
+    for (let i = 0; i < 5; i++) {
+      const th = new T.Mesh(this.geo.cone, this.mat.thorn);
+      th.scale.set(0.13, 0.38, 0.13);
+      th.position.set(-0.6 + i * 0.3, 0.4, i % 2 ? 0.18 : -0.18);
+      g.add(th);
+    }
+    g.position.set(x, side === 0 ? 0.4 : 5.6, z);
+    this.api.scene.add(g);
+    return { g, x, z, side, r: 0.8, type: 'log', vx: 0, vz: 0, spawn: 0, spin: 0 };
+  },
+  makeTanuki(x, z, side, ang) {
+    const T = this.api.THREE;
+    const g = new T.Group();
+    const b = new T.Mesh(this.geo.sphere, this.mat.tanuki);
+    b.scale.setScalar(0.5);
+    b.castShadow = true;
+    g.add(b);
+    for (const s of [-1, 1]) {
+      const ear = new T.Mesh(this.geo.cone, this.mat.tanukiDark);
+      ear.scale.set(0.11, 0.2, 0.11);
+      ear.position.set(0.2 * s, 0.4, 0);
+      g.add(ear);
+    }
+    const face = new T.Mesh(this.geo.sphere, this.mat.tanukiDark);
+    face.scale.set(0.26, 0.18, 0.14);
+    face.position.set(0, -0.08, 0.38);
+    g.add(face);
+    for (const s of [-1, 1]) {
+      const eye = new T.Mesh(this.geo.sphere, this.mat.foxWhite);
+      eye.scale.setScalar(0.05);
+      eye.position.set(0.12 * s, 0.08, 0.42);
+      g.add(eye);
+    }
+    g.position.set(x, side === 0 ? 0.5 : 5.5, z);
+    this.api.scene.add(g);
+    const sp = 2.1;
+    return { g, x, z, side, r: 0.6, type: 'tanuki', vx: Math.cos(ang) * sp, vz: Math.sin(ang) * sp, spawn: 0, spin: 0 };
+  },
+  setStage(s) {
+    this.g.stage = s;
+    const targets = s === 1 ? [4, 0] : s === 2 ? [4, 2] : [5, 3];
+    let logs = 0, tans = 0;
+    for (const o of this.obs) { if (o.type === 'log') logs++; else tans++; }
+    while (logs < targets[0]) {
+      const pos = this.randObsPos(3.5);
+      const side = s === 1 ? (Math.random() < 0.75 ? 0 : 1) : (Math.random() < 0.5 ? 0 : 1);
+      this.obs.push(this.makeLog(pos[0], pos[1], side));
+      logs++;
+    }
+    while (tans < targets[1]) {
+      const pos = this.randObsPos(4.5);
+      const side = Math.random() < 0.5 ? 0 : 1;
+      this.obs.push(this.makeTanuki(pos[0], pos[1], side, Math.random() * Math.PI * 2));
+      tans++;
+    }
+  },
+
+  // ================= スコア / イベント =================
+  addScore(d) {
+    const g = this.g;
+    g.score = Math.max(0, g.score + d);
+    try { this.api.setScore(g.score); } catch (e) {}
+  },
+  collect(a) {
+    const g = this.g;
+    g.combo += 1;
+    g.acorns += 1;
+    if (g.combo > g.maxCombo) g.maxCombo = g.combo;
+    if (g.combo % 5 === 0 && g.mult < 3) { g.mult += 1; this.sfx('combo'); }
+    this.addScore(10 * g.mult);
+    this.sfx('acorn');
+    this.spawnAcorn(a);
+  },
+  triggerFlip() {
+    const p = this.p;
+    if (p.flipT < 1 || p.leafCd > 0) return;
+    p.flipFrom = p.side;
+    p.flipTo = 1 - p.side;
+    p.flipT = 0;
+    p.leafCd = 0.8;
+    p.inv = Math.max(p.inv, 0.5); // 反転中は無敵
+    this.addScore(5);
+    this.sfx('flip');
+  },
+  hitObs() {
+    const g = this.g, p = this.p;
+    if (p.inv > 0 || p.flipT < 1) return;
+    this.addScore(-50);
+    g.combo = 0;
+    g.mult = 1;
+    g.freeze = 0.5;
+    p.inv = 1.2;
+    g.shake = 0.35;
+    this.sfx('hit');
+  },
+  finish() {
+    const g = this.g;
+    if (g.over) return;
+    g.over = true;
+    this.sfx('end');
+    try {
+      this.api.hud('🦊' + g.score + '  🌰' + g.acorns + '  🔥' + g.maxCombo);
+      this.api.clear();
+    } catch (e) {}
+  },
+
+  // ================= メインループ =================
+  update(dt) {
+    try {
+      const g = this.g;
+      if (!g || g.over) return;
+      if (!(dt > 0)) dt = 0.016;
+      const inp = this.api.input || {};
+      const ptr = inp.pointer || {};
+      const cam = this.api.camera;
+
+      this._syncAspect();
+
+      g.t += dt;
+      g.remaining -= dt;
+      if (g.remaining <= 0) { g.remaining = 0; this.finish(); return; }
+
+      if (ptr.pressed || inp.aPressed || inp.bPressed || inp.leftPressed) this._audio();
+
+      // 難易度ステージ
+      const e = 180 - g.remaining;
+      const st = e < 60 ? 1 : e < 120 ? 2 : 3;
+      if (st !== g.stage) this.setStage(st);
+
+      // 薄霧（3段階）
+      const fFar = g.stage === 3 ? 26 : 48;
+      const fNear = g.stage === 3 ? 10 : 20;
+      this.fog.far += (fFar - this.fog.far) * Math.min(1, dt * 0.6);
+      this.fog.near += (fNear - this.fog.near) * Math.min(1, dt * 0.6);
+
+      // タイマー類
+      const p = this.p;
+      if (p.inv > 0) p.inv -= dt;
+      if (g.shake > 0) g.shake -= dt;
+      if (p.leafCd > 0) p.leafCd -= dt;
+      const frozen = g.freeze > 0;
+      if (frozen) g.freeze -= dt;
+
+      // ---------- 移動（ドラッグ相対 + 矢印キー） ----------
+      const maxSpeed = 4.6;
+      let mx = 0, mz = 0;
+      if (!frozen) {
+        if (ptr.down) {
+          let dx = (ptr.dx || 0) * 0.022;
+          let dz = (ptr.dy || 0) * 0.022;
+          const len = Math.hypot(dx, dz);
+          const maxD = maxSpeed * dt;
+          if (len > maxD && len > 0) { dx = dx / len * maxD; dz = dz / len * maxD; }
+          mx += dx; mz += dz;
+        }
+        let kx = 0, kz = 0;
+        if (inp.left) kx -= 1;
+        if (inp.right) kx += 1;
+        if (inp.up) kz -= 1;
+        if (inp.down) kz += 1;
+        if (kx !== 0 || kz !== 0) {
+          const l = Math.hypot(kx, kz);
+          mx += (kx / l) * maxSpeed * dt;
+          mz += (kz / l) * maxSpeed * dt;
+        }
+      }
+      p.x = Math.max(-5.4, Math.min(5.4, p.x + mx));
+      p.z = Math.max(-8.4, Math.min(8.4, p.z + mz));
+      const mv = Math.hypot(mx, mz);
+      if (mv > 0.0001) {
+        const target = Math.atan2(mx, mz);
+        let da = target - p.angle;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        p.angle += da * Math.min(1, dt * 14);
+        g.stepT -= dt;
+        if (g.stepT <= 0) { this.sfx('step'); g.stepT = 0.26; }
+      }
+
+      // ---------- 重力反転アニメ ----------
+      if (p.flipT < 1) {
+        p.flipT = Math.min(1, p.flipT + dt / 0.35);
+        const u = p.flipT;
+        const ease = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+        const y0 = p.flipFrom === 0 ? 0.5 : 5.5;
+        const y1 = p.flipTo === 0 ? 0.5 : 5.5;
+        p.y = y0 + (y1 - y0) * ease;
+        if (p.flipT >= 1) p.side = p.flipTo;
+      } else {
+        p.y = p.side === 0 ? 0.5 : 5.5;
+      }
+
+      // ---------- どんぐり ----------
+      for (const a of this.acornList) {
+        if (a.spawn < 1) a.spawn = Math.min(1, a.spawn + dt * 3);
+        const yBase = a.side === 0 ? 0.34 : 5.66;
+        a.g.position.set(a.x, yBase + Math.sin(g.t * 3 + a.phase) * 0.07, a.z);
+        a.g.rotation.y += dt * 1.6;
+        a.g.scale.setScalar(0.25 + 0.75 * a.spawn);
+        if (Math.abs(p.y - yBase) < 0.8) {
+          const dx = p.x - a.x, dz = p.z - a.z;
+          if (dx * dx + dz * dz < 0.85 * 0.85) this.collect(a);
+        }
+      }
+
+      // ---------- 重力葉 ----------
+      this.mat.glow.opacity = 0.12 + 0.08 * Math.sin(g.t * 3);
+      for (const L of this.leaves) {
+        L.fan.rotation.y += dt * 2.2;
+        const yBase = L.side === 0 ? 0.28 : 5.72;
+        L.g.position.y = yBase + Math.sin(g.t * 2 + L.x) * 0.05;
+        if (Math.abs(p.y - yBase) < 0.8) {
+          const dx = p.x - L.x, dz = p.z - L.z;
+          if (dx * dx + dz * dz < 1.4 * 1.4) this.triggerFlip();
+        }
+      }
+
+      // ---------- 障害物 ----------
+      const spm = g.stage === 3 ? 1.2 : 1;
+      for (const o of this.obs) {
+        if (o.spawn < 1) o.spawn = Math.min(1, o.spawn + dt * 2.5);
+        if (o.type === 'tanuki') {
+          o.x += o.vx * spm * dt;
+          o.z += o.vz * spm * dt;
+          if (o.x < -5.4) { o.x = -5.4; o.vx = Math.abs(o.vx); }
+          if (o.x > 5.4) { o.x = 5.4; o.vx = -Math.abs(o.vx); }
+          if (o.z < -8.4) { o.z = -8.4; o.vz = Math.abs(o.vz); }
+          if (o.z > 8.4) { o.z = 8.4; o.vz = -Math.abs(o.vz); }
+        }
+        const yBase = o.side === 0 ? (o.type === 'log' ? 0.4 : 0.5) : (o.type === 'log' ? 5.6 : 5.5);
+        o.g.position.set(o.x, yBase, o.z);
+        o.g.scale.setScalar(0.3 + 0.7 * o.spawn);
+        if (o.type === 'tanuki') o.g.rotation.y = Math.atan2(o.vx, o.vz);
+        if (Math.abs(p.y - yBase) < 0.8) {
+          const dx = p.x - o.x, dz = p.z - o.z;
+          const rr = 0.5 + o.r;
+          if (dx * dx + dz * dz < rr * rr) this.hitObs();
+        }
+      }
+
+      // ---------- 自機描画 ----------
+      const fox = this.fox;
+      fox.position.set(p.x, p.y, p.z);
+      let rx;
+      if (p.flipT < 1) {
+        const u = p.flipT;
+        const ease = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+        const r0 = p.flipFrom === 0 ? 0 : Math.PI;
+        const r1 = p.flipTo === 0 ? 0 : Math.PI;
+        rx = r0 + (r1 - r0) * ease;
+      } else {
+        rx = p.side === 0 ? 0 : Math.PI;
+      }
+      fox.rotation.y = p.angle;
+      fox.rotation.x = rx;
+      const sq = p.flipT < 1 ? 1 + 0.18 * Math.sin(p.flipT * Math.PI) : 1;
+      const base = this.foxBase;
+      fox.scale.set(base / Math.sqrt(sq), base * sq, base / Math.sqrt(sq));
+      fox.visible = p.inv > 0 ? (Math.floor(g.t * 14) % 2 === 0) : true;
+
+      // ---------- ホタル ----------
+      this.mat.firefly.opacity = 0.5 + 0.3 * Math.sin(g.t * 2.4);
+      for (const f of this.fireflies) {
+        f.m.position.set(
+          f.bx + Math.sin(g.t * 0.6 + f.ph) * 0.9,
+          f.by + Math.sin(g.t * 1.1 + f.ph * 1.7) * 0.45,
+          f.bz + Math.cos(g.t * 0.5 + f.ph) * 0.9
+        );
+      }
+
+      // ---------- カメラ（森の中の3/4アングル・プレイヤーを中心に微追従） ----------
+      const cl = Math.min(1, dt * 4.5);
+      const px = p.x * 0.35, py = 9.2, pz = p.z * 0.3 + 11.2;
+      cam.position.x += (px - cam.position.x) * cl;
+      cam.position.y += (py - cam.position.y) * cl;
+      cam.position.z += (pz - cam.position.z) * cl;
+      if (g.shake > 0) {
+        cam.position.x += (Math.random() - 0.5) * 0.4;
+        cam.position.y += (Math.random() - 0.5) * 0.3;
+      }
+      cam.lookAt(p.x * 0.5, 1.6, p.z * 0.5 - 0.7);
+
+      // ---------- 残り10秒ティク ----------
+      if (g.remaining <= 10.4) {
+        const sec = Math.ceil(g.remaining);
+        if (sec !== g.lastTick && sec >= 1) { g.lastTick = sec; this.sfx('tick'); }
+      }
+
+      // ---------- HUD ----------
+      const tsec = Math.max(0, Math.ceil(g.remaining));
+      const mm = Math.floor(tsec / 60);
+      const ss = String(tsec % 60).padStart(2, '0');
+      const hud = '🦊' + g.score + '  ⏱' + mm + ':' + ss + '  x' + g.mult;
+      if (hud !== g.lastHud) { g.lastHud = hud; try { this.api.hud(hud); } catch (err) {} }
+    } catch (err) {}
+  },
+};
+// ===== ここまで =====
+__boot(typeof Game !== "undefined" ? Game : null);
+</script>
+</body>
+</html>
