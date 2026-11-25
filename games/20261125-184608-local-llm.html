@@ -519,7 +519,9 @@ const Game = {
     this.muzzle = 0;
     this.hint = 1;
     this.lastTick = 99;
+    this.laneFlash = 0;
     this.LANE_Y = [90, 180, 270];
+    this.shipLane = 1;
     this.shipX = 50;
     this.shipY = 180;
     this.shipBox = { x: 44, y: 174, w: 12, h: 12 };
@@ -552,6 +554,18 @@ const Game = {
   spawnEnemy(lane, prog) {
     const speed = this.api.util.lerp(70, 150, prog) * this.api.util.rand(0.9, 1.12);
     this.enemies.push({ x: 652, y: this.LANE_Y[lane], lane: lane, speed: speed, wob: this.api.util.rand(0, 6.28), dead: false });
+  },
+  changeLane(dir) {
+    const api = this.api;
+    const nl = this.shipLane + dir;
+    if (nl < 0 || nl > 2) {
+      api.sound.tone(140, 0.04, 'square', 0.05);
+      return;
+    }
+    this.shipLane = nl;
+    this.laneFlash = 0.18;
+    api.sound.tone(600, 0.05, 'square', 0.09, 900);
+    this.addP(this.shipX, this.shipY, '#7df9ff', 6, 120, 0.3, 2);
   },
   doGameOver() {
     if (this.gameEnded) return;
@@ -595,6 +609,7 @@ const Game = {
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 30);
     if (this.muzzle > 0) this.muzzle -= dt;
     if (this.wasted > 0) this.wasted -= dt;
+    if (this.laneFlash > 0) this.laneFlash -= dt;
 
     if (this.gameEnded) {
       this.endTimer -= dt;
@@ -618,7 +633,17 @@ const Game = {
     }
     if (this.time >= this.limit) { this.doClear(); return; }
 
-    if (api.input.aPressed) {
+    if (api.input.upPressed || api.input.swipe === 'up') this.changeLane(-1);
+    if (api.input.downPressed || api.input.swipe === 'down') this.changeLane(1);
+
+    const targetY = this.LANE_Y[this.shipLane];
+    const moveStep = 420 * dt;
+    const dy = targetY - this.shipY;
+    if (Math.abs(dy) <= moveStep) this.shipY = targetY;
+    else this.shipY += (dy > 0 ? 1 : -1) * moveStep;
+    this.shipBox = { x: 44, y: this.shipY - 6, w: 12, h: 12 };
+
+    if (api.input.aPressed || api.input.tap) {
       if (!this.bullet) {
         this.bullet = { x: this.shipX + 12, y: this.shipY };
         this.muzzle = 0.08;
@@ -659,9 +684,10 @@ const Game = {
       const e = this.enemies[i];
       e.x -= e.speed * dt;
       e.wob += dt * 6;
+      const ey = e.y + Math.sin(e.wob) * 1.5;
       if (this.bullet) {
-        const bb = { x: this.bullet.x - 4, y: this.shipY - 3, w: 8, h: 6 };
-        const eb = { x: e.x - 7, y: e.y - 7, w: 14, h: 14 };
+        const bb = { x: this.bullet.x - 4, y: this.bullet.y - 3, w: 8, h: 6 };
+        const eb = { x: e.x - 7, y: ey - 7, w: 14, h: 14 };
         if (api.util.rectHit(bb, eb)) {
           e.dead = true;
           this.bullet = null;
@@ -670,17 +696,17 @@ const Game = {
           api.addScore(10);
           api.sound.play('hit');
           api.sound.tone(1200, 0.08, 'square', 0.14, 1800);
-          this.addP(e.x, e.y, '#ff5533', 12, 200, 0.5, 2.5);
-          this.addP(e.x, e.y, '#ffd23f', 8, 160, 0.4, 2);
-          this.addP(e.x, e.y, '#ffffff', 5, 240, 0.3, 1.5);
-          this.floaters.push({ x: e.x, y: e.y - 12, text: '+10', life: 0.7, max: 0.7 });
+          this.addP(e.x, ey, '#ff5533', 12, 200, 0.5, 2.5);
+          this.addP(e.x, ey, '#ffd23f', 8, 160, 0.4, 2);
+          this.addP(e.x, ey, '#ffffff', 5, 240, 0.3, 1.5);
+          this.floaters.push({ x: e.x, y: ey - 12, text: '+10', life: 0.7, max: 0.7 });
           this.enemies.splice(i, 1);
           continue;
         }
       }
       if (e.x < -24) { this.enemies.splice(i, 1); continue; }
       if (this.time > 3) {
-        const eb = { x: e.x - 7, y: e.y - 7, w: 14, h: 14 };
+        const eb = { x: e.x - 7, y: ey - 7, w: 14, h: 14 };
         if (api.util.rectHit(this.shipBox, eb)) {
           this.enemies.splice(i, 1);
           this.doGameOver();
@@ -769,18 +795,21 @@ const Game = {
     ctx.fillRect(0, this.LANE_Y[0] - 1, W, 2);
     ctx.fillRect(0, this.LANE_Y[2] - 1, W, 2);
 
+    ctx.fillStyle = 'rgba(120,220,255,0.08)';
+    ctx.fillRect(0, this.LANE_Y[this.shipLane] - 22, W, 44);
+
     const shx = this.shake > 0 ? api.util.rand(-this.shake, this.shake) : 0;
     const shy = this.shake > 0 ? api.util.rand(-this.shake, this.shake) : 0;
     ctx.save();
     ctx.translate(shx | 0, shy | 0);
 
     for (const e of this.enemies) {
-      const dy = Math.round(Math.sin(e.wob) * 1.5);
-      this.drawSprite(ctx, this.SPR_ENEMY, e.x, e.y + dy, 2, '#ff4433', this.SPR_ENEMY_A, '#3a0a06');
+      const ey = e.y + Math.round(Math.sin(e.wob) * 1.5);
+      this.drawSprite(ctx, this.SPR_ENEMY, e.x, ey, 2, '#ff4433', this.SPR_ENEMY_A, '#3a0a06');
     }
 
     if (this.bullet) {
-      const bx = this.bullet.x | 0, by = this.shipY;
+      const bx = this.bullet.x | 0, by = this.bullet.y | 0;
       ctx.fillStyle = 'rgba(255,233,74,0.35)';
       ctx.fillRect(bx - 10, by - 1, 8, 2);
       ctx.fillStyle = '#ffe94a';
@@ -797,6 +826,14 @@ const Game = {
       if (this.muzzle > 0) {
         ctx.fillStyle = '#fff6c0';
         ctx.fillRect(this.shipX + 12, this.shipY - 3, 5, 6);
+      }
+      if (this.laneFlash > 0) {
+        ctx.globalAlpha = api.util.clamp(this.laneFlash / 0.18, 0, 1);
+        ctx.fillStyle = '#7df9ff';
+        ctx.fillRect(this.shipX - 14, this.shipY - 8, 2, 16);
+        ctx.fillRect(this.shipX - 14, this.shipY - 10, 6, 2);
+        ctx.fillRect(this.shipX - 14, this.shipY + 8, 6, 2);
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -841,13 +878,24 @@ const Game = {
     const tcol = urgent ? (Math.floor(this.time * 4) % 2 === 0 ? '#ff4444' : '#ffffff') : '#ffe94a';
     this.drawDotNum(ctx, tstr, W - 12 - tw, 20, px, tcol);
 
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 9px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.42)';
+    ctx.fillText('LANE ' + (this.shipLane + 1) + '/3', W / 2, 16);
+
     if (this.hint > 0 && !this.gameEnded && this.time < 8) {
       const a = Math.min(1, this.hint) * (0.55 + 0.45 * Math.sin(this.time * 5));
       ctx.globalAlpha = Math.max(0, a);
       ctx.textAlign = 'center';
       ctx.font = 'bold 12px monospace';
       ctx.fillStyle = '#cfe8ff';
-      ctx.fillText('TAP / SPACE / Z : SHOOT', W / 2, H - 18);
+      if (api.isTouch) {
+        ctx.fillText('TAP : SHOOT', W / 2, H - 32);
+        ctx.fillText('SWIPE UP/DOWN : LANE', W / 2, H - 16);
+      } else {
+        ctx.fillText('SPACE / CLICK : SHOOT', W / 2, H - 32);
+        ctx.fillText('ARROWS / W S : LANE', W / 2, H - 16);
+      }
       ctx.globalAlpha = 1;
     }
   }
