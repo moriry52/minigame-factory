@@ -7,6 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>クラヤミビーコン</title>
+<link rel="icon" type="image/png" href="../favicon-96x96.png?v=6065284c" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="../favicon.svg?v=6065284c" />
+<link rel="shortcut icon" href="../favicon.ico?v=6065284c" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png?v=6065284c" />
+<link rel="manifest" href="../site.webmanifest?v=6065284c" />
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
@@ -476,8 +481,10 @@ const Game = {
       vy: 0,
       angle: -Math.PI / 2,
       radius: 10,
-      lightRadius: 75,
-      targetLight: 75,
+      lightRadius: 150,
+      hp: 3,
+      maxHp: 3,
+      invincibleTimer: 0,
     };
     this.asteroids = [];
     this.mines = [];
@@ -514,6 +521,10 @@ const Game = {
 
     const isPressing = this.api.input.a || this.api.input.pointer.down;
     const p = this.player;
+
+    if (p.invincibleTimer > 0) {
+      p.invincibleTimer -= dt;
+    }
 
     // 自機の回転と移動
     if (isPressing) {
@@ -575,11 +586,11 @@ const Game = {
       this.api.sound.tone(200, 0.08, 'sine', 0.2, 100);
     }
 
-    // 視界半径の減衰
-    if (p.lightRadius > 72) {
-      p.lightRadius -= 12 * dt;
+    // 視界半径の減衰（従来の2倍サイズ基準）
+    if (p.lightRadius > 144) {
+      p.lightRadius -= 16 * dt;
     } else {
-      p.lightRadius = 72;
+      p.lightRadius = 144;
     }
 
     // スポーン処理（最初の3秒は安全）
@@ -622,8 +633,11 @@ const Game = {
 
       // 衝突判定
       if (this.api.util.dist(p.x, p.y, a.x, a.y) < p.radius + a.radius - 2) {
-        this.explodePlayer();
-        return;
+        this.asteroids.splice(i, 1);
+        this.createHitImpact(a.x, a.y);
+        this.hitPlayer();
+        if (this.gameOvered) return;
+        continue;
       }
 
       // 画面外除去
@@ -662,8 +676,11 @@ const Game = {
 
       // 衝突
       if (d < p.radius + m.radius) {
-        this.explodePlayer();
-        return;
+        this.mines.splice(i, 1);
+        this.createHitImpact(m.x, m.y);
+        this.hitPlayer();
+        if (this.gameOvered) return;
+        continue;
       }
     }
 
@@ -673,7 +690,7 @@ const Game = {
       ph.pulse += dt * 4;
       if (this.api.util.dist(p.x, p.y, ph.x, ph.y) < p.radius + ph.radius + 6) {
         this.photons.splice(i, 1);
-        p.lightRadius = Math.min(130, p.lightRadius + 45);
+        p.lightRadius = Math.min(260, p.lightRadius + 60);
         this.api.addScore(100);
         this.api.sound.tone(880, 0.1, 'sine', 0.25, 1320);
         for (let k = 0; k < 12; k++) {
@@ -704,6 +721,36 @@ const Game = {
     }
 
     this.api.setScore(Math.floor(t * 10) + (this.api.score >= 100 ? (this.api.score % 100) : 0));
+  },
+
+  createHitImpact(x, y) {
+    for (let k = 0; k < 15; k++) {
+      const a = (k / 15) * Math.PI * 2;
+      const spd = this.api.util.rand(30, 90);
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(a) * spd,
+        vy: Math.sin(a) * spd,
+        life: 0.35,
+        maxLife: 0.35,
+        color: '#ff6633',
+        radius: this.api.util.rand(2, 4),
+      });
+    }
+  },
+
+  hitPlayer() {
+    const p = this.player;
+    if (p.invincibleTimer > 0) return;
+
+    p.hp -= 1;
+    if (p.hp <= 0) {
+      this.explodePlayer();
+    } else {
+      p.invincibleTimer = 1.5;
+      this.api.sound.play('hurt');
+    }
   },
 
   spawnAsteroid(spdFactor) {
@@ -867,35 +914,38 @@ const Game = {
     }
     ctx.globalAlpha = 1.0;
 
-    // 自機描画
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle);
-    // 船体
-    ctx.fillStyle = '#e0f7fa';
-    ctx.strokeStyle = '#00e5ff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(p.radius + 4, 0);
-    ctx.lineTo(-p.radius, -p.radius * 0.8);
-    ctx.lineTo(-p.radius * 0.4, 0);
-    ctx.lineTo(-p.radius, p.radius * 0.8);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    // コックピット光
-    ctx.fillStyle = '#00ffff';
-    ctx.beginPath();
-    ctx.arc(0, 0, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    // 自機描画（無敵時間中は点滅）
+    const showPlayer = p.invincibleTimer <= 0 || Math.floor(p.invincibleTimer * 10) % 2 === 0;
+    if (showPlayer) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle);
+      // 船体
+      ctx.fillStyle = '#e0f7fa';
+      ctx.strokeStyle = '#00e5ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(p.radius + 4, 0);
+      ctx.lineTo(-p.radius, -p.radius * 0.8);
+      ctx.lineTo(-p.radius * 0.4, 0);
+      ctx.lineTo(-p.radius, p.radius * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // コックピット光
+      ctx.fillStyle = '#00ffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // 【クラヤミマスク描画】
     // 自機ライト部分を透明に切り抜いた暗黒マスクを被せる
     ctx.save();
-    const grad = ctx.createRadialGradient(p.x, p.y, p.lightRadius * 0.4, p.x, p.y, p.lightRadius);
+    const grad = ctx.createRadialGradient(p.x, p.y, p.lightRadius * 0.45, p.x, p.y, p.lightRadius);
     grad.addColorStop(0, 'rgba(5, 5, 10, 0)');
-    grad.addColorStop(0.7, 'rgba(5, 5, 10, 0.4)');
+    grad.addColorStop(0.75, 'rgba(5, 5, 10, 0.35)');
     grad.addColorStop(1, 'rgba(5, 5, 10, 0.98)');
 
     ctx.fillStyle = grad;
@@ -940,10 +990,26 @@ const Game = {
     ctx.font = 'bold 12px monospace';
     ctx.fillStyle = '#e0ffff';
     const secStr = Math.ceil(remain) + 's';
-    ctx.fillText('ESCAPE: ' + secStr, W / 2, gy + 20);
+    ctx.fillText('ESCAPE: ' + secStr, W / 2, gy + 19);
+
+    // HP (シールド) アイコン描画
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = '#80deea';
+    ctx.fillText('SHIELD', 20, 24);
+    for (let i = 0; i < p.maxHp; i++) {
+      ctx.fillStyle = i < p.hp ? '#00e5ff' : 'rgba(255, 255, 255, 0.2)';
+      ctx.strokeStyle = '#00e5ff';
+      ctx.lineWidth = 1.2;
+      const hx = 68 + i * 14;
+      const hy = 16;
+      ctx.fillRect(hx, hy, 10, 9);
+      ctx.strokeRect(hx, hy, 10, 9);
+    }
 
     // 操作ガイド（開始直後）
     if (this.api.time < 3.5) {
+      ctx.textAlign = 'center';
       ctx.font = '11px sans-serif';
       ctx.fillStyle = '#76ff03';
       ctx.fillText('画面ホールドで前進 / 離して旋回', W / 2, H - 24);
