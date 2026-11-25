@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>闇街の灯り</title>
+<link rel="icon" type="image/png" href="../favicon-96x96.png?v=6065284c" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="../favicon.svg?v=6065284c" />
+<link rel="shortcut icon" href="../favicon.ico?v=6065284c" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png?v=6065284c" />
+<link rel="manifest" href="../site.webmanifest?v=6065284c" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:none}
+#screen{display:block;background:#000;touch-action:none;image-rendering:auto}
+#hud{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:14px;font-weight:700;
+  text-shadow:0 1px 3px #000;pointer-events:none}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,6,12,.72);backdrop-filter:blur(2px);touch-action:none}
+#overlay.hidden{display:none}
+.panel{width:min(92%,420px);max-height:92%;overflow:auto;background:#151a2b;border:1px solid #2c3554;
+  border-radius:16px;padding:20px 18px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.panel h1{font-size:24px;margin-bottom:8px;letter-spacing:.02em}
+.panel h2{font-size:20px;margin-bottom:8px}
+.panel p{font-size:14px;line-height:1.6;color:#c9d0ea}
+.panel .box{margin:12px 0;padding:10px 12px;background:#0e1220;border-radius:10px;text-align:left}
+.panel .box b{display:block;font-size:12px;color:#8fa0d8;margin-bottom:4px}
+.panel ul{padding-left:1.2em;font-size:13px;line-height:1.6;color:#c9d0ea}
+.panel .score{font-size:40px;font-weight:800;margin:6px 0}
+.panel .best{font-size:13px;color:#8fa0d8}
+.btn{display:inline-block;margin:10px 6px 0;padding:12px 22px;border-radius:999px;border:0;
+  background:#5b7cff;color:#fff;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn.sub{background:#2c3554}
+.blink{animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.35}}
+#pad{display:none;height:190px;flex:none;position:relative;touch-action:none}
+#pad.show{display:block}
+.pbtn{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:rgba(120,140,220,.18);border:2px solid rgba(160,180,255,.35);color:#dfe6ff;
+  font-weight:800;font-size:18px;touch-action:none}
+.pbtn.on{background:rgba(120,150,255,.55)}
+.pbtn.dir{border-radius:14px;width:58px;height:58px;font-size:20px}
+.pbtn.act{width:78px;height:78px;font-size:15px;text-align:center;line-height:1.1;padding:4px}
+#topbar{flex:none;height:38px;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 8px}
+#topbar a,#topbar button{background:rgba(20,24,40,.7);border:1px solid #2c3554;color:#cfd7f5;font-size:13px;
+  padding:6px 10px;border-radius:999px;text-decoration:none;cursor:pointer}
+</style>
+
+</head>
+<body>
+<div id="app">
+<div id="topbar">
+    <button id="muteBtn" type="button" aria-label="音のオン・オフ">🔊</button>
+    <button id="pauseBtn" type="button" aria-label="一時停止">⏸</button>
+    <a href="../index.html">一覧</a>
+  </div>
+  <div id="stage">
+    <canvas id="screen"></canvas>
+    <div id="hud"></div>
+    <div id="overlay"></div>
+  </div>
+  <div id="pad"></div>
+</div>
+<script type="application/json" id="meta">{"id": "20261125-230006-local-llm", "title": "闇街の灯り", "summary": "視界が限られた夜の街で、自機の周囲の明かりだけを頼りに迫る闇を避けて3分間生き延びる全方位サバイバル。", "rules": ["自機はドラッグで全方向に移動するが、周囲半径80pxしか見えない。", "画面外から無数の「闇の触手」が自機に向かって伸長してくる。", "触手に触れると即ゲームオーバー。", "浮遊する「路地裏の灯り」を拾うと、一時的に視界が拡大（半径150px）し、触手の先端が見える。", "180秒（3分）生き延びたら勝利。"], "controls": {"スマホ": "指を画面に押し当て、ドラッグ方向に自機を移動させる。", "PC": "マウスボタンを押しながらドラッグ、または矢印キーで移動。"}, "cfg": {"mode": "2d", "w": 480, "h": 480, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script >
+"use strict";
+// ============================================================
+// ミニゲーム共通ランタイム（入力・画面サイズ・音・タイトル/結果画面）
+// ゲーム側は `const Game = { init(api), update(dt), draw(ctx) }` を定義するだけ。
+// ============================================================
+const META = JSON.parse(document.getElementById("meta").textContent);
+const CFG = META.cfg;                       // { mode:'2d'|'3d', w, h, scheme, buttons:[{key,label}] }
+const IS_TOUCH = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || ("ontouchstart" in window);
+const __G = (window.__GAME__ = { state: "boot", frame: 0, score: 0, errors: [], startedAt: 0, endedAt: 0, plays: 0 });
+window.addEventListener("error", (e) => __G.errors.push(String(e.message || e)));
+window.addEventListener("unhandledrejection", (e) => __G.errors.push(String(e.reason)));
+
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), canvas = $("screen"), overlay = $("overlay"), hudEl = $("hud"), padEl = $("pad");
+
+// ---------------- ユーティリティ ----------------
+const U = {
+  rand: (a = 0, b = 1) => a + Math.random() * (b - a),
+  randInt: (a, b) => Math.floor(a + Math.random() * (b - a + 1)),
+  choice: (arr) => arr[Math.floor(Math.random() * arr.length)],
+  clamp: (v, a, b) => (v < a ? a : v > b ? b : v),
+  lerp: (a, b, t) => a + (b - a) * t,
+  dist: (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1),
+  angle: (x1, y1, x2, y2) => Math.atan2(y2 - y1, x2 - x1),
+  rectHit: (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y,
+  circleHit: (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < (a.r + b.r) ** 2,
+  hsl: (h, s = 80, l = 60, a = 1) => `hsla(${h},${s}%,${l}%,${a})`,
+};
+
+// ---------------- 入力 ----------------
+// 押しっぱなし: left/right/up/down/a/b   押した瞬間: leftPressed ... aPressed/bPressed
+// pointer: {x,y,nx,ny,down,pressed,released,dx,dy}  (x,y はゲーム座標, nx,ny は -1..1)
+// swipe: 'left'|'right'|'up'|'down'|null （このフレームでスワイプがあった時だけ）
+// tap: このフレームで短いタップ/クリックがあったら true（pointer.x,y がその位置）
+const DIRS = ["left", "right", "up", "down"];
+const KEYMAP = {
+  ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
+  ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down",
+  KeyZ: "a", Space: "a", Enter: "a", KeyJ: "a", KeyX: "b", ShiftLeft: "b", ShiftRight: "b", KeyK: "b",
+};
+const Input = {
+  left: false, right: false, up: false, down: false, a: false, b: false,
+  leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, aPressed: false, bPressed: false,
+  pointer: { x: 0, y: 0, nx: 0, ny: 0, down: false, pressed: false, released: false, dx: 0, dy: 0 },
+  swipe: null, tap: false,
+  _key: {}, _pad: {}, _one: false, _prev: {}, _pulse: {}, _ptrPressed: false, _ptrReleased: false,
+  _dx: 0, _dy: 0, _swipe: null, _tap: false, _ignoreUntilUp: false,
+  _begin() {
+    for (const k of [...DIRS, "a", "b"]) {
+      const held = !!(this._key[k] || this._pad[k] || (k === "a" && this._one));
+      const pulse = !!this._pulse[k];
+      this[k] = held || pulse;
+      this[k + "Pressed"] = (held && !this._prev[k]) || pulse;
+      this._prev[k] = held;
+    }
+    this._pulse = {};
+    const p = this.pointer;
+    p.pressed = this._ptrPressed; p.released = this._ptrReleased; p.dx = this._dx; p.dy = this._dy;
+    this.swipe = this._swipe; this.tap = this._tap;
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+  },
+  _clear() {
+    this._key = {}; this._pad = {}; this._one = false; this._pulse = {};
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+    this.pointer.down = false;
+    for (const k of [...DIRS, "a", "b"]) this._prev[k] = false;
+    this._ignoreUntilUp = true;
+  },
+};
+
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); e.preventDefault(); return; }
+  if (e.code === "KeyM") { Sound.toggle(); return; }
+  const k = KEYMAP[e.code];
+  if (!k) return;
+  e.preventDefault();
+  Sound.unlock();
+  if (__G.state === "title" || __G.state === "over" || __G.state === "clear") {
+    if (k === "a" && !e.repeat && (__G.state === "title" || performance.now() - __G.endedAt > 700)) startGame();
+    return;
+  }
+  if (__G.paused) { if (k === "a" && !e.repeat) togglePause(false); return; }
+  Input._key[k] = true;
+});
+window.addEventListener("keyup", (e) => { const k = KEYMAP[e.code]; if (k) Input._key[k] = false; });
+window.addEventListener("blur", () => { Input._key = {}; });
+
+// ステージ上のポインタ（タッチ・マウス共通）
+let __viewRect = { left: 0, top: 0, width: 1, height: 1 };
+let __ptrStart = null;
+function __toGame(ev) {
+  const r = __viewRect;
+  const u = (ev.clientX - r.left) / r.width, v = (ev.clientY - r.top) / r.height;
+  return { x: u * __G.W, y: v * __G.H, nx: u * 2 - 1, ny: -(v * 2 - 1) };
+}
+let __activePtr = null;
+stage.addEventListener("pointerdown", (ev) => {
+  Sound.unlock();
+  if (__G.state !== "playing" || __G.paused) return;
+  if (__activePtr !== null && __activePtr !== ev.pointerId) return;
+  __activePtr = ev.pointerId;
+  try { stage.setPointerCapture(ev.pointerId); } catch (_) {}
+  Input._ignoreUntilUp = false;
+  const g = __toGame(ev);
+  Object.assign(Input.pointer, g, { down: true });
+  Input._ptrPressed = true;
+  __ptrStart = { x: ev.clientX, y: ev.clientY, t: performance.now(), gx: g.x, gy: g.y };
+  if (CFG.scheme === "ワンボタン") Input._one = true;
+  ev.preventDefault();
+});
+stage.addEventListener("pointermove", (ev) => {
+  if (ev.pointerId !== __activePtr) {
+    if (ev.pointerType === "mouse" && __activePtr === null) Object.assign(Input.pointer, __toGame(ev));
+    return;
+  }
+  const g = __toGame(ev);
+  Input._dx += g.x - Input.pointer.x; Input._dy += g.y - Input.pointer.y;
+  Object.assign(Input.pointer, g);
+});
+function __ptrEnd(ev) {
+  if (ev.pointerId !== __activePtr) return;
+  __activePtr = null;
+  Input.pointer.down = false;
+  Input._ptrReleased = true;
+  Input._one = false;
+  if (__ptrStart) {
+    const dx = ev.clientX - __ptrStart.x, dy = ev.clientY - __ptrStart.y;
+    const d = Math.hypot(dx, dy), dt = performance.now() - __ptrStart.t;
+    if (d > 28 && dt < 600) {
+      const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+      Input._swipe = dir;
+      if (CFG.scheme === "タップ/スワイプ") Input._pulse[dir] = true;
+    } else if (d <= 28 && dt < 500) {
+      Input._tap = true;
+      Input.pointer.x = __ptrStart.gx; Input.pointer.y = __ptrStart.gy;
+    }
+  }
+  __ptrStart = null;
+}
+stage.addEventListener("pointerup", __ptrEnd);
+stage.addEventListener("pointercancel", __ptrEnd);
+stage.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault());
+
+// 仮想パッド（タッチ端末 かつ 操作=仮想パッド のときだけ表示）
+function __buildPad() {
+  if (!(IS_TOUCH && CFG.scheme === "仮想パッド")) return;
+  padEl.classList.add("show");
+  const dirs = [["up", "▲", 66, 14], ["left", "◀", 8, 72], ["right", "▶", 124, 72], ["down", "▼", 66, 130]];
+  let html = "";
+  for (const [k, s, x, y] of dirs) html += `<div class="pbtn dir" data-btn="${k}" style="left:${x + 10}px;top:${y - 6}px">${s}</div>`;
+  const btns = (CFG.buttons && CFG.buttons.length ? CFG.buttons : [{ key: "A", label: "A" }]).slice(0, 2);
+  btns.forEach((b, i) => {
+    const right = i === 0 ? 18 : 108, top = i === 0 ? 60 : 92;
+    html += `<div class="pbtn act" data-btn="${b.key.toLowerCase()}" style="right:${right}px;top:${top - 20}px">${b.label || b.key}</div>`;
+  });
+  padEl.innerHTML = html;
+  const owner = {};
+  const refresh = () => {
+    const on = {};
+    for (const id in owner) if (owner[id]) on[owner[id]] = true;
+    Input._pad = on;
+    padEl.querySelectorAll(".pbtn").forEach((el) => el.classList.toggle("on", !!on[el.dataset.btn]));
+  };
+  const hit = (ev) => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return el && el.dataset && el.dataset.btn ? el.dataset.btn : null;
+  };
+  padEl.addEventListener("pointerdown", (ev) => {
+    Sound.unlock(); ev.preventDefault();
+    try { padEl.setPointerCapture(ev.pointerId); } catch (_) {}
+    if (__G.state !== "playing") { if (__G.state !== "boot") startGame(); return; }
+    if (__G.paused) { togglePause(false); return; }
+    owner[ev.pointerId] = hit(ev); refresh();
+  });
+  padEl.addEventListener("pointermove", (ev) => { if (ev.pointerId in owner) { owner[ev.pointerId] = hit(ev); refresh(); } });
+  const up = (ev) => { delete owner[ev.pointerId]; refresh(); };
+  padEl.addEventListener("pointerup", up);
+  padEl.addEventListener("pointercancel", up);
+}
+
+// ---------------- 音（Web Audio で合成。外部ファイル不要） ----------------
+const Sound = {
+  ctx: null, muted: false,
+  unlock() {
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { this.ctx = null; }
+  },
+  toggle() {
+    this.muted = !this.muted;
+    $("muteBtn").textContent = this.muted ? "🔇" : "🔊";
+    try { localStorage.setItem("mgf:mute", this.muted ? "1" : "0"); } catch (_) {}
+  },
+  // tone(周波数Hz, 長さ秒, 波形, 音量0-1, 終わりの周波数)
+  tone(freq = 440, dur = 0.1, type = "square", vol = 0.15, slideTo = null) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+    } catch (_) {}
+  },
+  noise(dur = 0.2, vol = 0.2) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const n = Math.floor(this.ctx.sampleRate * dur), buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+      const d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); g.gain.value = vol;
+      s.buffer = buf; s.connect(g).connect(this.ctx.destination); s.start();
+    } catch (_) {}
+  },
+  // 用意済みの効果音: shot hit explode jump coin powerup hurt select clear over
+  play(name) {
+    const P = {
+      shot: () => this.tone(880, 0.07, "square", 0.08, 440),
+      hit: () => this.tone(220, 0.08, "square", 0.12, 110),
+      explode: () => this.noise(0.35, 0.25),
+      jump: () => this.tone(300, 0.15, "triangle", 0.18, 700),
+      coin: () => { this.tone(988, 0.06, "square", 0.1); setTimeout(() => this.tone(1319, 0.12, "square", 0.1), 60); },
+      powerup: () => this.tone(400, 0.3, "triangle", 0.18, 1200),
+      hurt: () => this.tone(200, 0.25, "sawtooth", 0.15, 60),
+      select: () => this.tone(660, 0.05, "square", 0.08),
+      clear: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, "triangle", 0.18), i * 110)),
+      over: () => [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, "triangle", 0.18), i * 180)),
+    };
+    (P[name] || P.select)();
+  },
+};
+try { if (localStorage.getItem("mgf:mute") === "1") Sound.toggle(); } catch (_) {}
+
+// ---------------- 画面サイズ ----------------
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+let ctx2d = null, R3 = null;
+function __layout() {
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  if (CFG.mode === "3d") {
+    const ar = CFG.w / CFG.h;
+    let w = sw, h = sw / ar;
+    if (h > sh) { h = sh; w = sh * ar; }
+    canvas.style.width = w + "px"; canvas.style.height = h + "px";
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (R3) { R3.renderer.setSize(w, h, false); if (api.camera && api.camera.isPerspectiveCamera) { api.camera.aspect = ar; api.camera.updateProjectionMatrix(); } }
+  } else {
+    const s = Math.min(sw / CFG.w, sh / CFG.h);
+    canvas.style.width = CFG.w * s + "px"; canvas.style.height = CFG.h * s + "px";
+    canvas.width = Math.round(CFG.w * s * DPR); canvas.height = Math.round(CFG.h * s * DPR);
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (ctx2d) { ctx2d.setTransform(canvas.width / CFG.w, 0, 0, canvas.height / CFG.h, 0, 0); ctx2d.imageSmoothingEnabled = true; }
+  }
+  __viewRect = canvas.getBoundingClientRect();
+}
+window.addEventListener("resize", () => setTimeout(__layout, 50));
+window.addEventListener("orientationchange", () => setTimeout(__layout, 200));
+
+// ---------------- ゲームに渡す api ----------------
+const api = {
+  W: CFG.w, H: CFG.h, input: Input, sound: Sound, util: U, isTouch: IS_TOUCH,
+  ctx: null,                               // 2D: CanvasRenderingContext2D
+  THREE: null, scene: null, camera: null, renderer: null,   // 3D のみ
+  time: 0,                                 // プレイ開始からの秒数
+  get score() { return __G.score; },
+  setScore(n) { __G.score = Math.floor(n) || 0; },
+  addScore(n) { __G.score = Math.floor(__G.score + n) || 0; },
+  gameOver() { __endGame("over"); },
+  clear() { __endGame("clear"); },
+  hud(text) { hudEl.textContent = text == null ? "" : String(text); },
+};
+
+// ---------------- 画面（タイトル / 結果 / 一時停止） ----------------
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function __best() { try { return +localStorage.getItem("mgf:best:" + META.id) || 0; } catch (_) { return 0; } }
+function __saveBest(s) { try { if (s > __best()) localStorage.setItem("mgf:best:" + META.id, s); } catch (_) {} }
+const START_HINT = IS_TOUCH ? "画面をタップしてスタート" : "クリック / スペースキーでスタート";
+
+function __showTitle() {
+  const ctl = (META.controls || {})[IS_TOUCH ? "スマホ" : "PC"] || "";
+  const rules = (META.rules || []).map((r) => `<li>${esc(r)}</li>`).join("");
+  overlay.innerHTML = `<div class="panel">
+    <h1>${esc(META.title)}</h1><p>${esc(META.summary)}</p>
+    <div class="box"><b>ルール</b><ul>${rules}</ul></div>
+    <div class="box"><b>操作（${IS_TOUCH ? "スマホ" : "PC"}）</b><p>${esc(ctl)}</p></div>
+    ${__best() ? `<p class="best">ベスト: ${__best()}</p>` : ""}
+    <p class="blink" style="margin-top:10px;font-weight:700">${START_HINT}</p></div>`;
+  overlay.classList.remove("hidden");
+  __G.state = "title";
+}
+function __showResult(kind) {
+  const best = __best();
+  overlay.innerHTML = `<div class="panel">
+    <h2>${kind === "clear" ? "クリア！" : "ゲームオーバー"}</h2>
+    <div class="score">${__G.score}</div>
+    <p class="best">ベスト: ${best}</p>
+    <div><button class="btn" id="retryBtn" type="button">もう一度</button>
+    <a class="btn sub" href="../index.html">一覧へ</a></div></div>`;
+  overlay.classList.remove("hidden");
+  $("retryBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(); });
+}
+overlay.addEventListener("pointerup", (ev) => {
+  if (ev.target.closest && ev.target.closest("a,button")) return;
+  Sound.unlock();
+  if (__G.state === "title") startGame();
+  else if (__G.paused) togglePause(false);
+});
+
+function togglePause(force) {
+  if (__G.state !== "playing") return;
+  const p = typeof force === "boolean" ? force : !__G.paused;
+  __G.paused = p;
+  if (p) {
+    overlay.innerHTML = `<div class="panel"><h2>一時停止中</h2><p class="blink">${IS_TOUCH ? "タップで再開" : "クリック / スペースで再開"}</p></div>`;
+    overlay.classList.remove("hidden");
+    Input._clear();
+  } else {
+    overlay.classList.add("hidden");
+    __last = performance.now();
+  }
+}
+$("pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); togglePause(); });
+$("muteBtn").addEventListener("click", (e) => { e.stopPropagation(); Sound.unlock(); Sound.toggle(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) togglePause(true); });
+
+// ---------------- 進行 ----------------
+let GAME = null, __last = 0;
+function __fail(where, e) {
+  console.error(e);
+  __G.errors.push(`${where}: ${e && e.message ? e.message : e}`);
+  __G.state = "error";
+  overlay.innerHTML = `<div class="panel"><h2>エラーが発生しました</h2><p>${esc(e && e.message ? e.message : e)}</p></div>`;
+  overlay.classList.remove("hidden");
+}
+function __init3D() {
+  if (R3) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(DPR);
+  R3 = { renderer };
+  api.THREE = THREE; api.renderer = renderer;
+}
+function startGame() {
+  if (!GAME) return;
+  Input._clear();
+  __G.score = 0; __G.frame = 0; __G.paused = false; __G.plays++;
+  api.time = 0; api.hud("");
+  if (CFG.mode === "3d") {
+    api.scene = new THREE.Scene();
+    api.camera = new THREE.PerspectiveCamera(60, CFG.w / CFG.h, 0.1, 1000);
+    api.camera.position.set(0, 5, 10); api.camera.lookAt(0, 0, 0);
+  }
+  try { GAME.init(api); } catch (e) { return __fail("init", e); }
+  __layout();
+  overlay.classList.add("hidden");
+  __G.state = "playing"; __G.startedAt = performance.now();
+  __last = performance.now();
+}
+function __endGame(kind) {
+  if (__G.state !== "playing") return;
+  __G.state = kind; __G.endedAt = performance.now();
+  __saveBest(__G.score);
+  Sound.play(kind === "clear" ? "clear" : "over");
+  setTimeout(() => __showResult(kind), 500);
+}
+function __frame(now) {
+  requestAnimationFrame(__frame);
+  if (__G.state !== "playing" || __G.paused) {
+    if (CFG.mode === "3d" && R3 && api.scene && api.camera && !__G.noDraw) R3.renderer.render(api.scene, api.camera);
+    return;
+  }
+  const dt = Math.min(0.05, Math.max(0, (now - __last) / 1000));
+  __last = now;
+  api.time += dt;
+  try {
+    Input._begin();
+    GAME.update(dt);
+    if (__G.state === "error") return;
+    if (__G.noDraw) { /* 自動テストで長い時間を早送りするときは描画を省く */ }
+    else if (CFG.mode === "3d") R3.renderer.render(api.scene, api.camera);
+    else if (GAME.draw) { ctx2d.save(); GAME.draw(ctx2d); ctx2d.restore(); }
+    __G.frame++;
+    if (!Number.isFinite(__G.score)) throw new Error("score が数値ではありません");
+  } catch (e) { __fail("update/draw", e); }
+}
+// 自動テスト用：ゲームの状態（Game の変数）を短い文字列に要約する。操作したときとしないときの違いを比べるのに使う
+__G.peek = function () {
+  const seen = new WeakSet(); let n = 0;
+  const walk = (v, d) => {
+    if (++n > 5000 || v === null || v === undefined) return null;
+    const t = typeof v;
+    if (t === "number") return Number.isFinite(v) ? Math.round(v * 1000) / 1000 : String(v);
+    if (t === "string") return v.length > 60 ? v.slice(0, 60) : v;
+    if (t === "boolean") return v;
+    if (t !== "object" || d > 4 || seen.has(v)) return null;
+    seen.add(v);
+    if (v === api || v === Input || v === Sound || v === U || (typeof Node !== "undefined" && v instanceof Node) || ArrayBuffer.isView(v)) return null;
+    if (v.isObject3D) return [walk(v.position, d + 1), walk(v.rotation && { x: v.rotation.x, y: v.rotation.y, z: v.rotation.z }, d + 1), v.visible, v.children ? v.children.length : 0];
+    if (v.isVector2 || v.isVector3) return [v.x, v.y, v.z].map((x) => walk(x, d + 1));
+    if (Array.isArray(v)) return [v.length].concat(v.slice(0, 40).map((x) => walk(x, d + 1)));
+    if (v instanceof Map || v instanceof Set) return [v.size];
+    const o = {};
+    for (const k of Object.keys(v).slice(0, 60)) o[k] = walk(v[k], d + 1);
+    return o;
+  };
+  let s;
+  try { s = JSON.stringify(walk(GAME, 0)); } catch (_) { s = ""; }
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(16) + ":" + s.length;
+};
+function __boot(game) {
+  GAME = game;
+  if (!GAME || typeof GAME.init !== "function" || typeof GAME.update !== "function") {
+    return __fail("boot", new Error("Game オブジェクト（init / update）が定義されていません"));
+  }
+  try {
+    if (CFG.mode === "3d") { __init3D(); }
+    else { ctx2d = canvas.getContext("2d"); api.ctx = ctx2d; }
+  } catch (e) { return __fail("boot", e); }
+  __buildPad();
+  __layout();
+  if (CFG.mode !== "3d") { ctx2d.fillStyle = "#000"; ctx2d.fillRect(0, 0, CFG.w, CFG.h); }
+  __showTitle();
+  requestAnimationFrame(__frame);
+}
+
+// ===== ここからゲーム固有のコード =====
+const Game = {
+  init(api) {
+    this.api = api;
+    const U = api.util;
+    this.W = api.W; this.H = api.H;
+    this.CX = api.W / 2; this.CY = api.H / 2;
+    this.MAXT = 180;
+    this.player = { x: 0, y: 0, r: 10 };
+    this.tentacles = [];
+    this.lights = [];
+    this.particles = [];
+    this.popups = [];
+    this.lightTimer = 0;
+    this.vision = 80;
+    this.spawnTimer = 2.2;
+    this.lightSpawnTimer = 0.8;
+    this.buzzTimer = 0;
+    this.burstTimer = 0;
+    this.shake = 0;
+    this.flash = 0;
+    this.dead = false;
+    this.clearDone = false;
+    this.scored = 0;
+    this.picked = 0;
+    this.stars = [];
+    for (let i = 0; i < 70; i++) this.stars.push({ x: U.rand(0, 480), y: U.rand(0, 480), r: U.rand(0.5, 1.4), a: U.rand(0.12, 0.35), c: U.choice(['#8a93b8', '#7a86a8', '#9a9288']) });
+    this.dots = [];
+    for (let i = 0; i < 95; i++) this.dots.push({ x: U.rand(0, 480), y: U.rand(0, 480), r: U.rand(1.2, 2.6), a: U.rand(0.25, 0.6), c: U.choice(['#3c3c48', '#3c3c48', '#4a4436', '#36404a']) });
+    this.wins = [];
+    for (let i = 0; i < 34; i++) this.wins.push({ x: U.rand(0, 480), y: U.rand(0, 480), w: U.rand(2, 4), h: U.rand(2, 4), a: U.rand(0.25, 0.5), c: U.choice(['#5a5040', '#4a4438', '#40485a']) });
+  },
+
+  update(dt) {
+    if (this.dead || this.clearDone) return;
+    const api = this.api, U = api.util, t = api.time;
+    if (t >= this.MAXT) {
+      this.clearDone = true;
+      api.addScore(5000);
+      api.sound.play('clear');
+      api.sound.tone(520, 0.5, 'sine', 0.2, 1040);
+      api.clear();
+      return;
+    }
+    const p = this.player;
+    const inp = api.input;
+
+    // ---- 移動（ドラッグ：相対移動 / 矢印キー） ----
+    let mvx = 0, mvy = 0;
+    if (inp.pointer.down) { mvx += inp.pointer.dx; mvy += inp.pointer.dy; }
+    if (inp.left) mvx -= 1;
+    if (inp.right) mvx += 1;
+    if (inp.up) mvy -= 1;
+    if (inp.down) mvy += 1;
+    const mlen = Math.hypot(mvx, mvy);
+    if (mlen > 0) {
+      mvx /= mlen; mvy /= mlen;
+      const d = Math.min(mlen, 300 * dt);
+      p.x += mvx * d;
+      p.y += mvy * d;
+      this.burstTimer -= dt;
+      if (this.burstTimer <= 0) {
+        this.particles.push({ x: p.x - mvx * 10 + U.rand(-3, 3), y: p.y - mvy * 10 + U.rand(-3, 3), vx: -mvx * U.rand(20, 50), vy: -mvy * U.rand(20, 50), life: 0.3, max: 0.3, r: U.rand(1, 2), c: '#9aa4c8', a: 0.5 });
+        this.burstTimer = 0.07;
+      }
+    }
+
+    // ---- 視界半径（灯りで拡大） ----
+    if (this.lightTimer > 0) this.lightTimer -= dt;
+    const target = this.lightTimer > 0 ? 150 : 80;
+    this.vision = U.lerp(this.vision, target, 1 - Math.pow(0.001, dt));
+
+    // ---- 触手スポーン（0-60s:1本/80px、60-120s:3本/120px、120-180s:5本/160px） ----
+    const phase = t < 60 ? 0 : (t < 120 ? 1 : 2);
+    const maxT = [1, 3, 5][phase];
+    const spd = [80, 120, 160][phase];
+    if (t > 3 && this.tentacles.length < maxT) {
+      this.spawnTimer -= dt;
+      if (this.spawnTimer <= 0) {
+        this.spawnTentacle(spd, phase);
+        this.spawnTimer = U.rand(1.6, 3.2) * (1 - phase * 0.2);
+      }
+    } else if (this.tentacles.length >= maxT) {
+      this.spawnTimer = 0.4;
+    }
+
+    // ---- 触手更新・当たり判定 ----
+    this.buzzTimer -= dt;
+    let nearest = 1e9;
+    for (let i = this.tentacles.length - 1; i >= 0; i--) {
+      const T = this.tentacles[i];
+      if (T.state === 'ext') {
+        T.len += T.spd * dt;
+        if (T.len >= T.maxLen) { T.len = T.maxLen; T.state = 'ret'; }
+      } else {
+        T.len -= T.spd * 1.7 * dt;
+        if (T.len <= 0) { this.tentacles.splice(i, 1); continue; }
+      }
+      const tipX = T.bx + Math.cos(T.ang) * T.len;
+      const tipY = T.by + Math.sin(T.ang) * T.len;
+      const d = this.segDist(p.x, p.y, T.bx, T.by, tipX, tipY);
+      if (d < p.r + 3.5) { this.die(tipX, tipY); return; }
+      nearest = Math.min(nearest, d);
+    }
+    if (nearest < 170 && this.buzzTimer <= 0) {
+      api.sound.tone(110, 0.16, 'sawtooth', 0.12, 55);
+      this.buzzTimer = Math.max(0.22, 0.5 - nearest / 400);
+    }
+
+    // ---- 灯りスポーン（5秒で消滅） ----
+    this.lightSpawnTimer -= dt;
+    if (this.lightSpawnTimer <= 0 && this.lights.length < 2) {
+      const a = U.rand(0, Math.PI * 2);
+      const d = U.rand(70, 220);
+      this.lights.push({ x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d, r: 5, life: 5, max: 5 });
+      this.lightSpawnTimer = U.rand(3.5, 6);
+    }
+
+    // ---- 灯り更新・取得 ----
+    for (let i = this.lights.length - 1; i >= 0; i--) {
+      const L = this.lights[i];
+      L.life -= dt;
+      if (L.life <= 0) { this.lights.splice(i, 1); continue; }
+      if (U.dist(p.x, p.y, L.x, L.y) < p.r + L.r + 2) {
+        this.lights.splice(i, 1);
+        this.lightTimer = 3;
+        this.picked++;
+        api.addScore(200 + this.picked * 50);
+        api.sound.play('coin');
+        api.sound.tone(1000, 0.12, 'sine', 0.18, 1600);
+        this.popup(L.x, L.y - 14, '灯りを拾った!', '#ffe98a', 13);
+        this.burst(L.x, L.y, '#ffe98a', 16, 160);
+        this.flash = 0.35;
+      }
+    }
+
+    // ---- 粒子・ポップアップ ----
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const q = this.particles[i];
+      q.life -= dt;
+      if (q.life <= 0) { this.particles.splice(i, 1); continue; }
+      q.x += q.vx * dt; q.y += q.vy * dt;
+      q.vx *= Math.pow(0.2, dt); q.vy *= Math.pow(0.2, dt);
+    }
+    for (let i = this.popups.length - 1; i >= 0; i--) {
+      const q = this.popups[i];
+      q.life -= dt;
+      if (q.life <= 0) this.popups.splice(i, 1);
+      else q.y -= 22 * dt;
+    }
+    if (this.particles.length > 240) this.particles.splice(0, this.particles.length - 240);
+    if (this.popups.length > 8) this.popups.shift();
+
+    // ---- 演出・スコア ----
+    this.shake = Math.max(0, this.shake - 14 * dt);
+    this.flash = Math.max(0, this.flash - 1.6 * dt);
+    const targetScore = Math.floor(t * 10) + this.picked * 200;
+    if (targetScore > this.scored) {
+      api.addScore(targetScore - this.scored);
+      this.scored = targetScore;
+    }
+  },
+
+  spawnTentacle(spd, phase) {
+    const U = this.api.util, p = this.player;
+    const a = U.rand(0, Math.PI * 2);
+    const d = U.rand(300, 400);
+    const bx = p.x + Math.cos(a) * d;
+    const by = p.y + Math.sin(a) * d;
+    this.tentacles.push({ bx: bx, by: by, ang: a, len: 0, maxLen: d + 150, spd: spd, state: 'ext', seed: U.rand(0, 6.28) });
+    this.api.sound.tone(75, 0.35, 'sine', 0.09, 45);
+  },
+
+  segDist(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const L2 = dx * dx + dy * dy;
+    let t = L2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0;
+    t = this.api.util.clamp(t, 0, 1);
+    return this.api.util.dist(px, py, ax + dx * t, ay + dy * t);
+  },
+
+  die(x, y) {
+    this.dead = true;
+    this.shake = 14;
+    this.flash = 0.8;
+    this.burst(x, y, '#ff4444', 26, 240);
+    this.burst(this.player.x, this.player.y, '#ffffff', 20, 200);
+    this.api.sound.play('over');
+    this.api.sound.tone(150, 0.6, 'sawtooth', 0.25, 40);
+    this.api.gameOver();
+  },
+
+  burst(x, y, c, n, sp) {
+    const U = this.api.util;
+    for (let i = 0; i < n; i++) {
+      const a = U.rand(0, Math.PI * 2), v = U.rand(sp * 0.3, sp);
+      this.particles.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: U.rand(0.3, 0.7), max: 0.7, r: U.rand(1.5, 3.5), c: c, a: 1 });
+    }
+  },
+
+  popup(x, y, txt, c, size) {
+    this.popups.push({ x: x, y: y, txt: txt, c: c, life: 1.1, size: size || 14 });
+  },
+
+  draw(ctx) {
+    const api = this.api, U = api.util, t = api.time;
+    const p = this.player;
+    const shx = this.shake > 0 ? U.rand(-this.shake, this.shake) : 0;
+    const shy = this.shake > 0 ? U.rand(-this.shake, this.shake) : 0;
+    const sx = (wx) => this.CX + (wx - p.x) + shx;
+    const sy = (wy) => this.CY + (wy - p.y) + shy;
+    const wrap = (v) => ((v % 480) + 480) % 480;
+    const lit = this.lightTimer > 0;
+
+    // ---- 背景（夜の街） ----
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, this.W, this.H);
+    const ox = wrap(-p.x * 0.5), oy = wrap(-p.y * 0.5);
+    for (const s of this.stars) {
+      const x = wrap(s.x + ox), y = wrap(s.y + oy);
+      ctx.globalAlpha = s.a;
+      ctx.fillStyle = s.c;
+      ctx.beginPath(); ctx.arc(x, y, s.r, 0, 7); ctx.fill();
+    }
+    const nx = wrap(-p.x), ny = wrap(-p.y);
+    for (const d of this.dots) {
+      const x = wrap(d.x + nx), y = wrap(d.y + ny);
+      ctx.globalAlpha = d.a;
+      ctx.fillStyle = d.c;
+      ctx.beginPath(); ctx.arc(x, y, d.r, 0, 7); ctx.fill();
+    }
+    for (const w of this.wins) {
+      const x = wrap(w.x + nx), y = wrap(w.y + ny);
+      ctx.globalAlpha = w.a * (0.7 + 0.3 * Math.sin(t * 1.3 + w.x));
+      ctx.fillStyle = w.c;
+      ctx.fillRect(x, y, w.w, w.h);
+    }
+    ctx.globalAlpha = 1;
+
+    // ---- 灯り（暗闇越しにうっすら透ける） ----
+    for (const L of this.lights) {
+      const x = sx(L.x), y = sy(L.y);
+      if (x < -60 || x > this.W + 60 || y < -60 || y > this.H + 60) continue;
+      const blink = L.life < 1.2 ? (Math.sin(t * 18) > 0 ? 1 : 0.25) : 1;
+      const pulse = 1 + 0.15 * Math.sin(t * 5 + L.x);
+      ctx.globalAlpha = 0.16 * blink;
+      ctx.fillStyle = '#ffdf6a';
+      ctx.beginPath(); ctx.arc(x, y, 16 * pulse, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ---- 触手（視界内は#333333、波打つ線分＋三角形の先端） ----
+    for (const T of this.tentacles) {
+      if (T.len < 4) continue;
+      const bx = sx(T.bx), by = sy(T.by);
+      const tx = sx(T.bx + Math.cos(T.ang) * T.len);
+      const ty = sy(T.by + Math.sin(T.ang) * T.len);
+      if (Math.max(bx, tx) < -80 || Math.min(bx, tx) > this.W + 80 || Math.max(by, ty) < -80 || Math.min(by, ty) > this.H + 80) continue;
+      const pxn = -Math.sin(T.ang), pyn = Math.cos(T.ang);
+      const N = 10;
+      ctx.strokeStyle = '#333333';
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      for (let i = 1; i <= N; i++) {
+        const f = i / N;
+        const w = Math.sin(f * 2.2 + t * 6 + T.seed) * 4 * f;
+        ctx.lineTo(bx + (tx - bx) * f + pxn * w, by + (ty - by) * f + pyn * w);
+      }
+      ctx.stroke();
+      const ca = Math.cos(T.ang), sa = Math.sin(T.ang);
+      ctx.fillStyle = '#333333';
+      ctx.beginPath();
+      ctx.moveTo(tx + ca * 9, ty + sa * 9);
+      ctx.lineTo(tx - ca * 5 + pxn * 7, ty - sa * 5 + pyn * 7);
+      ctx.lineTo(tx - ca * 5 - pxn * 7, ty - sa * 5 - pyn * 7);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // ---- 粒子 ----
+    for (const q of this.particles) {
+      ctx.globalAlpha = Math.max(0, q.life / q.max) * (q.a === undefined ? 1 : q.a);
+      ctx.fillStyle = q.c;
+      ctx.beginPath(); ctx.arc(sx(q.x), sy(q.y), q.r, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ---- 灯りの本体（視界内は鮮明に） ----
+    for (const L of this.lights) {
+      const x = sx(L.x), y = sy(L.y);
+      if (x < -60 || x > this.W + 60 || y < -60 || y > this.H + 60) continue;
+      const blink = L.life < 1.2 ? (Math.sin(t * 18) > 0 ? 1 : 0.3) : 1;
+      const pulse = 1 + 0.15 * Math.sin(t * 5 + L.x);
+      ctx.globalAlpha = 0.5 * blink;
+      ctx.fillStyle = '#ffdf6a';
+      ctx.beginPath(); ctx.arc(x, y, 12 * pulse, 0, 7); ctx.fill();
+      ctx.globalAlpha = blink;
+      ctx.fillStyle = '#ffff00';
+      ctx.beginPath(); ctx.arc(x, y, L.r * pulse, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ---- 暗闇（視界円以外を黒く） ----
+    const v = this.vision;
+    const g = ctx.createRadialGradient(this.CX, this.CY, v * 0.35, this.CX, this.CY, v);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.75, 'rgba(0,0,0,0.25)');
+    g.addColorStop(1, 'rgba(0,0,0,0.97)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, this.W, this.H);
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, this.W, v * 0.35);
+    ctx.fillRect(0, this.H - v * 0.35, this.W, v * 0.35);
+    ctx.fillRect(0, v * 0.35, v * 0.35, this.H - v * 0.7);
+    ctx.fillRect(this.W - v * 0.35, v * 0.35, v * 0.35, this.H - v * 0.7);
+    ctx.globalAlpha = 1;
+
+    // ---- 灯り取得中：視界外でも触手の先端が見える ----
+    if (lit) {
+      for (const T of this.tentacles) {
+        if (T.len < 6) continue;
+        const x = sx(T.bx + Math.cos(T.ang) * T.len);
+        const y = sy(T.by + Math.sin(T.ang) * T.len);
+        if (x < -20 || x > this.W + 20 || y < -20 || y > this.H + 20) continue;
+        const pulse = 0.7 + 0.3 * Math.sin(t * 8 + T.seed);
+        ctx.globalAlpha = 0.25 * pulse;
+        ctx.fillStyle = '#ff5533';
+        ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill();
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = '#ff6644';
+        ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // ---- 自機（白い円＋光のオーラ） ----
+    if (!this.dead) {
+      const og = ctx.createRadialGradient(this.CX, this.CY, 2, this.CX, this.CY, 26);
+      og.addColorStop(0, 'rgba(255,240,200,0.5)');
+      og.addColorStop(1, 'rgba(255,240,200,0)');
+      ctx.fillStyle = og;
+      ctx.beginPath(); ctx.arc(this.CX, this.CY, 26, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(this.CX, this.CY, p.r, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,240,200,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(this.CX, this.CY, p.r + 2.5, 0, 7); ctx.stroke();
+    }
+
+    // ---- 視界円の縁 ----
+    ctx.strokeStyle = lit ? 'rgba(255,220,120,0.22)' : 'rgba(180,190,220,0.14)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(this.CX, this.CY, v, 0, 7); ctx.stroke();
+
+    // ---- ポップアップ ----
+    ctx.textAlign = 'center';
+    for (const q of this.popups) {
+      ctx.globalAlpha = Math.max(0, Math.min(1, q.life));
+      ctx.font = 'bold ' + q.size + 'px sans-serif';
+      ctx.fillStyle = q.c;
+      ctx.fillText(q.txt, sx(q.x), sy(q.y));
+    }
+    ctx.globalAlpha = 1;
+
+    // ---- フラッシュ ----
+    if (this.flash > 0) {
+      ctx.fillStyle = 'rgba(255,240,200,' + (this.flash * 0.25).toFixed(3) + ')';
+      ctx.fillRect(0, 0, this.W, this.H);
+    }
+
+    // ---- HUD ----
+    const remain = Math.max(0, this.MAXT - t);
+    const mm = Math.floor(remain / 60);
+    const ss = Math.floor(remain % 60);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, this.W, 40);
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillStyle = '#e8ecf8';
+    ctx.fillText('TIME ' + mm + ':' + (ss < 10 ? '0' : '') + ss, 12, 26);
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillStyle = '#ffe98a';
+    ctx.fillText('SCORE ' + api.score, this.W - 12, 24);
+    // 残り時間バー
+    const bw = 150;
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(this.W - 12 - bw, 31, bw, 4);
+    ctx.fillStyle = remain < 30 ? '#ff5544' : '#8fb7ff';
+    ctx.fillRect(this.W - 12 - bw, 31, bw * (remain / this.MAXT), 4);
+    // 灯りゲージ
+    if (lit) {
+      const lw = 64 * Math.max(0, this.lightTimer / 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(12, 31, 64, 4);
+      ctx.fillStyle = '#ffe98a';
+      ctx.fillRect(12, 31, lw, 4);
+    }
+    // 最初の3秒はガイド表示
+    if (t < 3.5 && !this.dead) {
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = Math.min(1, 3.5 - t);
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#9aa4c8';
+      ctx.fillText('指でドラッグ（または矢印キー）で移動', this.CX, this.CY + 46);
+      ctx.fillText('視界の外から闇の触手が迫る…', this.CX, this.CY + 64);
+      ctx.globalAlpha = 1;
+    }
+  }
+};
+// ===== ここまで =====
+__boot(typeof Game !== "undefined" ? Game : null);
+</script>
+</body>
+</html>
