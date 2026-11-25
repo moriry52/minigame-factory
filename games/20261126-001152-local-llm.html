@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>逆転ギア・ドリフト</title>
+<link rel="icon" type="image/png" href="../favicon-96x96.png?v=6065284c" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="../favicon.svg?v=6065284c" />
+<link rel="shortcut icon" href="../favicon.ico?v=6065284c" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png?v=6065284c" />
+<link rel="manifest" href="../site.webmanifest?v=6065284c" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:none}
+#screen{display:block;background:#000;touch-action:none;image-rendering:auto}
+#hud{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:14px;font-weight:700;
+  text-shadow:0 1px 3px #000;pointer-events:none}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,6,12,.72);backdrop-filter:blur(2px);touch-action:none}
+#overlay.hidden{display:none}
+.panel{width:min(92%,420px);max-height:92%;overflow:auto;background:#151a2b;border:1px solid #2c3554;
+  border-radius:16px;padding:20px 18px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.panel h1{font-size:24px;margin-bottom:8px;letter-spacing:.02em}
+.panel h2{font-size:20px;margin-bottom:8px}
+.panel p{font-size:14px;line-height:1.6;color:#c9d0ea}
+.panel .box{margin:12px 0;padding:10px 12px;background:#0e1220;border-radius:10px;text-align:left}
+.panel .box b{display:block;font-size:12px;color:#8fa0d8;margin-bottom:4px}
+.panel ul{padding-left:1.2em;font-size:13px;line-height:1.6;color:#c9d0ea}
+.panel .score{font-size:40px;font-weight:800;margin:6px 0}
+.panel .best{font-size:13px;color:#8fa0d8}
+.btn{display:inline-block;margin:10px 6px 0;padding:12px 22px;border-radius:999px;border:0;
+  background:#5b7cff;color:#fff;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn.sub{background:#2c3554}
+.blink{animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.35}}
+#pad{display:none;height:190px;flex:none;position:relative;touch-action:none}
+#pad.show{display:block}
+.pbtn{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:rgba(120,140,220,.18);border:2px solid rgba(160,180,255,.35);color:#dfe6ff;
+  font-weight:800;font-size:18px;touch-action:none}
+.pbtn.on{background:rgba(120,150,255,.55)}
+.pbtn.dir{border-radius:14px;width:58px;height:58px;font-size:20px}
+.pbtn.act{width:78px;height:78px;font-size:15px;text-align:center;line-height:1.1;padding:4px}
+#topbar{flex:none;height:38px;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 8px}
+#topbar a,#topbar button{background:rgba(20,24,40,.7);border:1px solid #2c3554;color:#cfd7f5;font-size:13px;
+  padding:6px 10px;border-radius:999px;text-decoration:none;cursor:pointer}
+</style>
+
+</head>
+<body>
+<div id="app">
+<div id="topbar">
+    <button id="muteBtn" type="button" aria-label="音のオン・オフ">🔊</button>
+    <button id="pauseBtn" type="button" aria-label="一時停止">⏸</button>
+    <a href="../index.html">一覧</a>
+  </div>
+  <div id="stage">
+    <canvas id="screen"></canvas>
+    <div id="hud"></div>
+    <div id="overlay"></div>
+  </div>
+  <div id="pad"></div>
+</div>
+<script type="application/json" id="meta">{"id": "20261126-001152-local-llm", "title": "逆転ギア・ドリフト", "summary": "機械工場を縦に下りながら、一定間隔で反転する操作と戦い、3分間生き延びるアクション。", "rules": ["指をドラッグして自機（歯車）を左右に移動させ、上から落ちてくるスパークや障害物を避ける。", "画面中央の「反転ゲージ」が満タンになると、次の10秒間、操作が左右反転する。", "反転中は、左にドラッグすると右へ、右にドラッグすると左へ移動する。", "障害物に当たるとHPが減り、0になるとゲームオーバー。", "3分間生き延びた時間がスコアになる。"], "controls": {"スマホ": "画面を左右にドラッグして自機を移動させる。反転中は感覚を逆にして操作する。", "PC": "マウスをドラッグするか、矢印キーで左右に移動する。反転中はキーの反応が逆になる。"}, "cfg": {"mode": "2d", "w": 360, "h": 640, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script >
+"use strict";
+// ============================================================
+// ミニゲーム共通ランタイム（入力・画面サイズ・音・タイトル/結果画面）
+// ゲーム側は `const Game = { init(api), update(dt), draw(ctx) }` を定義するだけ。
+// ============================================================
+const META = JSON.parse(document.getElementById("meta").textContent);
+const CFG = META.cfg;                       // { mode:'2d'|'3d', w, h, scheme, buttons:[{key,label}] }
+const IS_TOUCH = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || ("ontouchstart" in window);
+const __G = (window.__GAME__ = { state: "boot", frame: 0, score: 0, errors: [], startedAt: 0, endedAt: 0, plays: 0 });
+window.addEventListener("error", (e) => __G.errors.push(String(e.message || e)));
+window.addEventListener("unhandledrejection", (e) => __G.errors.push(String(e.reason)));
+
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), canvas = $("screen"), overlay = $("overlay"), hudEl = $("hud"), padEl = $("pad");
+
+// ---------------- ユーティリティ ----------------
+const U = {
+  rand: (a = 0, b = 1) => a + Math.random() * (b - a),
+  randInt: (a, b) => Math.floor(a + Math.random() * (b - a + 1)),
+  choice: (arr) => arr[Math.floor(Math.random() * arr.length)],
+  clamp: (v, a, b) => (v < a ? a : v > b ? b : v),
+  lerp: (a, b, t) => a + (b - a) * t,
+  dist: (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1),
+  angle: (x1, y1, x2, y2) => Math.atan2(y2 - y1, x2 - x1),
+  rectHit: (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y,
+  circleHit: (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < (a.r + b.r) ** 2,
+  hsl: (h, s = 80, l = 60, a = 1) => `hsla(${h},${s}%,${l}%,${a})`,
+};
+
+// ---------------- 入力 ----------------
+// 押しっぱなし: left/right/up/down/a/b   押した瞬間: leftPressed ... aPressed/bPressed
+// pointer: {x,y,nx,ny,down,pressed,released,dx,dy}  (x,y はゲーム座標, nx,ny は -1..1)
+// swipe: 'left'|'right'|'up'|'down'|null （このフレームでスワイプがあった時だけ）
+// tap: このフレームで短いタップ/クリックがあったら true（pointer.x,y がその位置）
+const DIRS = ["left", "right", "up", "down"];
+const KEYMAP = {
+  ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
+  ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down",
+  KeyZ: "a", Space: "a", Enter: "a", KeyJ: "a", KeyX: "b", ShiftLeft: "b", ShiftRight: "b", KeyK: "b",
+};
+const Input = {
+  left: false, right: false, up: false, down: false, a: false, b: false,
+  leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, aPressed: false, bPressed: false,
+  pointer: { x: 0, y: 0, nx: 0, ny: 0, down: false, pressed: false, released: false, dx: 0, dy: 0 },
+  swipe: null, tap: false,
+  _key: {}, _pad: {}, _one: false, _prev: {}, _pulse: {}, _ptrPressed: false, _ptrReleased: false,
+  _dx: 0, _dy: 0, _swipe: null, _tap: false, _ignoreUntilUp: false,
+  _begin() {
+    for (const k of [...DIRS, "a", "b"]) {
+      const held = !!(this._key[k] || this._pad[k] || (k === "a" && this._one));
+      const pulse = !!this._pulse[k];
+      this[k] = held || pulse;
+      this[k + "Pressed"] = (held && !this._prev[k]) || pulse;
+      this._prev[k] = held;
+    }
+    this._pulse = {};
+    const p = this.pointer;
+    p.pressed = this._ptrPressed; p.released = this._ptrReleased; p.dx = this._dx; p.dy = this._dy;
+    this.swipe = this._swipe; this.tap = this._tap;
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+  },
+  _clear() {
+    this._key = {}; this._pad = {}; this._one = false; this._pulse = {};
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+    this.pointer.down = false;
+    for (const k of [...DIRS, "a", "b"]) this._prev[k] = false;
+    this._ignoreUntilUp = true;
+  },
+};
+
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); e.preventDefault(); return; }
+  if (e.code === "KeyM") { Sound.toggle(); return; }
+  const k = KEYMAP[e.code];
+  if (!k) return;
+  e.preventDefault();
+  Sound.unlock();
+  if (__G.state === "title" || __G.state === "over" || __G.state === "clear") {
+    if (k === "a" && !e.repeat && (__G.state === "title" || performance.now() - __G.endedAt > 700)) startGame();
+    return;
+  }
+  if (__G.paused) { if (k === "a" && !e.repeat) togglePause(false); return; }
+  Input._key[k] = true;
+});
+window.addEventListener("keyup", (e) => { const k = KEYMAP[e.code]; if (k) Input._key[k] = false; });
+window.addEventListener("blur", () => { Input._key = {}; });
+
+// ステージ上のポインタ（タッチ・マウス共通）
+let __viewRect = { left: 0, top: 0, width: 1, height: 1 };
+let __ptrStart = null;
+function __toGame(ev) {
+  const r = __viewRect;
+  const u = (ev.clientX - r.left) / r.width, v = (ev.clientY - r.top) / r.height;
+  return { x: u * __G.W, y: v * __G.H, nx: u * 2 - 1, ny: -(v * 2 - 1) };
+}
+let __activePtr = null;
+stage.addEventListener("pointerdown", (ev) => {
+  Sound.unlock();
+  if (__G.state !== "playing" || __G.paused) return;
+  if (__activePtr !== null && __activePtr !== ev.pointerId) return;
+  __activePtr = ev.pointerId;
+  try { stage.setPointerCapture(ev.pointerId); } catch (_) {}
+  Input._ignoreUntilUp = false;
+  const g = __toGame(ev);
+  Object.assign(Input.pointer, g, { down: true });
+  Input._ptrPressed = true;
+  __ptrStart = { x: ev.clientX, y: ev.clientY, t: performance.now(), gx: g.x, gy: g.y };
+  if (CFG.scheme === "ワンボタン") Input._one = true;
+  ev.preventDefault();
+});
+stage.addEventListener("pointermove", (ev) => {
+  if (ev.pointerId !== __activePtr) {
+    if (ev.pointerType === "mouse" && __activePtr === null) Object.assign(Input.pointer, __toGame(ev));
+    return;
+  }
+  const g = __toGame(ev);
+  Input._dx += g.x - Input.pointer.x; Input._dy += g.y - Input.pointer.y;
+  Object.assign(Input.pointer, g);
+});
+function __ptrEnd(ev) {
+  if (ev.pointerId !== __activePtr) return;
+  __activePtr = null;
+  Input.pointer.down = false;
+  Input._ptrReleased = true;
+  Input._one = false;
+  if (__ptrStart) {
+    const dx = ev.clientX - __ptrStart.x, dy = ev.clientY - __ptrStart.y;
+    const d = Math.hypot(dx, dy), dt = performance.now() - __ptrStart.t;
+    if (d > 28 && dt < 600) {
+      const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+      Input._swipe = dir;
+      if (CFG.scheme === "タップ/スワイプ") Input._pulse[dir] = true;
+    } else if (d <= 28 && dt < 500) {
+      Input._tap = true;
+      Input.pointer.x = __ptrStart.gx; Input.pointer.y = __ptrStart.gy;
+    }
+  }
+  __ptrStart = null;
+}
+stage.addEventListener("pointerup", __ptrEnd);
+stage.addEventListener("pointercancel", __ptrEnd);
+stage.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault());
+
+// 仮想パッド（タッチ端末 かつ 操作=仮想パッド のときだけ表示）
+function __buildPad() {
+  if (!(IS_TOUCH && CFG.scheme === "仮想パッド")) return;
+  padEl.classList.add("show");
+  const dirs = [["up", "▲", 66, 14], ["left", "◀", 8, 72], ["right", "▶", 124, 72], ["down", "▼", 66, 130]];
+  let html = "";
+  for (const [k, s, x, y] of dirs) html += `<div class="pbtn dir" data-btn="${k}" style="left:${x + 10}px;top:${y - 6}px">${s}</div>`;
+  const btns = (CFG.buttons && CFG.buttons.length ? CFG.buttons : [{ key: "A", label: "A" }]).slice(0, 2);
+  btns.forEach((b, i) => {
+    const right = i === 0 ? 18 : 108, top = i === 0 ? 60 : 92;
+    html += `<div class="pbtn act" data-btn="${b.key.toLowerCase()}" style="right:${right}px;top:${top - 20}px">${b.label || b.key}</div>`;
+  });
+  padEl.innerHTML = html;
+  const owner = {};
+  const refresh = () => {
+    const on = {};
+    for (const id in owner) if (owner[id]) on[owner[id]] = true;
+    Input._pad = on;
+    padEl.querySelectorAll(".pbtn").forEach((el) => el.classList.toggle("on", !!on[el.dataset.btn]));
+  };
+  const hit = (ev) => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return el && el.dataset && el.dataset.btn ? el.dataset.btn : null;
+  };
+  padEl.addEventListener("pointerdown", (ev) => {
+    Sound.unlock(); ev.preventDefault();
+    try { padEl.setPointerCapture(ev.pointerId); } catch (_) {}
+    if (__G.state !== "playing") { if (__G.state !== "boot") startGame(); return; }
+    if (__G.paused) { togglePause(false); return; }
+    owner[ev.pointerId] = hit(ev); refresh();
+  });
+  padEl.addEventListener("pointermove", (ev) => { if (ev.pointerId in owner) { owner[ev.pointerId] = hit(ev); refresh(); } });
+  const up = (ev) => { delete owner[ev.pointerId]; refresh(); };
+  padEl.addEventListener("pointerup", up);
+  padEl.addEventListener("pointercancel", up);
+}
+
+// ---------------- 音（Web Audio で合成。外部ファイル不要） ----------------
+const Sound = {
+  ctx: null, muted: false,
+  unlock() {
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { this.ctx = null; }
+  },
+  toggle() {
+    this.muted = !this.muted;
+    $("muteBtn").textContent = this.muted ? "🔇" : "🔊";
+    try { localStorage.setItem("mgf:mute", this.muted ? "1" : "0"); } catch (_) {}
+  },
+  // tone(周波数Hz, 長さ秒, 波形, 音量0-1, 終わりの周波数)
+  tone(freq = 440, dur = 0.1, type = "square", vol = 0.15, slideTo = null) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+    } catch (_) {}
+  },
+  noise(dur = 0.2, vol = 0.2) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const n = Math.floor(this.ctx.sampleRate * dur), buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+      const d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); g.gain.value = vol;
+      s.buffer = buf; s.connect(g).connect(this.ctx.destination); s.start();
+    } catch (_) {}
+  },
+  // 用意済みの効果音: shot hit explode jump coin powerup hurt select clear over
+  play(name) {
+    const P = {
+      shot: () => this.tone(880, 0.07, "square", 0.08, 440),
+      hit: () => this.tone(220, 0.08, "square", 0.12, 110),
+      explode: () => this.noise(0.35, 0.25),
+      jump: () => this.tone(300, 0.15, "triangle", 0.18, 700),
+      coin: () => { this.tone(988, 0.06, "square", 0.1); setTimeout(() => this.tone(1319, 0.12, "square", 0.1), 60); },
+      powerup: () => this.tone(400, 0.3, "triangle", 0.18, 1200),
+      hurt: () => this.tone(200, 0.25, "sawtooth", 0.15, 60),
+      select: () => this.tone(660, 0.05, "square", 0.08),
+      clear: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, "triangle", 0.18), i * 110)),
+      over: () => [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, "triangle", 0.18), i * 180)),
+    };
+    (P[name] || P.select)();
+  },
+};
+try { if (localStorage.getItem("mgf:mute") === "1") Sound.toggle(); } catch (_) {}
+
+// ---------------- 画面サイズ ----------------
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+let ctx2d = null, R3 = null;
+function __layout() {
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  if (CFG.mode === "3d") {
+    const ar = CFG.w / CFG.h;
+    let w = sw, h = sw / ar;
+    if (h > sh) { h = sh; w = sh * ar; }
+    canvas.style.width = w + "px"; canvas.style.height = h + "px";
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (R3) { R3.renderer.setSize(w, h, false); if (api.camera && api.camera.isPerspectiveCamera) { api.camera.aspect = ar; api.camera.updateProjectionMatrix(); } }
+  } else {
+    const s = Math.min(sw / CFG.w, sh / CFG.h);
+    canvas.style.width = CFG.w * s + "px"; canvas.style.height = CFG.h * s + "px";
+    canvas.width = Math.round(CFG.w * s * DPR); canvas.height = Math.round(CFG.h * s * DPR);
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (ctx2d) { ctx2d.setTransform(canvas.width / CFG.w, 0, 0, canvas.height / CFG.h, 0, 0); ctx2d.imageSmoothingEnabled = true; }
+  }
+  __viewRect = canvas.getBoundingClientRect();
+}
+window.addEventListener("resize", () => setTimeout(__layout, 50));
+window.addEventListener("orientationchange", () => setTimeout(__layout, 200));
+
+// ---------------- ゲームに渡す api ----------------
+const api = {
+  W: CFG.w, H: CFG.h, input: Input, sound: Sound, util: U, isTouch: IS_TOUCH,
+  ctx: null,                               // 2D: CanvasRenderingContext2D
+  THREE: null, scene: null, camera: null, renderer: null,   // 3D のみ
+  time: 0,                                 // プレイ開始からの秒数
+  get score() { return __G.score; },
+  setScore(n) { __G.score = Math.floor(n) || 0; },
+  addScore(n) { __G.score = Math.floor(__G.score + n) || 0; },
+  gameOver() { __endGame("over"); },
+  clear() { __endGame("clear"); },
+  hud(text) { hudEl.textContent = text == null ? "" : String(text); },
+};
+
+// ---------------- 画面（タイトル / 結果 / 一時停止） ----------------
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function __best() { try { return +localStorage.getItem("mgf:best:" + META.id) || 0; } catch (_) { return 0; } }
+function __saveBest(s) { try { if (s > __best()) localStorage.setItem("mgf:best:" + META.id, s); } catch (_) {} }
+const START_HINT = IS_TOUCH ? "画面をタップしてスタート" : "クリック / スペースキーでスタート";
+
+function __showTitle() {
+  const ctl = (META.controls || {})[IS_TOUCH ? "スマホ" : "PC"] || "";
+  const rules = (META.rules || []).map((r) => `<li>${esc(r)}</li>`).join("");
+  overlay.innerHTML = `<div class="panel">
+    <h1>${esc(META.title)}</h1><p>${esc(META.summary)}</p>
+    <div class="box"><b>ルール</b><ul>${rules}</ul></div>
+    <div class="box"><b>操作（${IS_TOUCH ? "スマホ" : "PC"}）</b><p>${esc(ctl)}</p></div>
+    ${__best() ? `<p class="best">ベスト: ${__best()}</p>` : ""}
+    <p class="blink" style="margin-top:10px;font-weight:700">${START_HINT}</p></div>`;
+  overlay.classList.remove("hidden");
+  __G.state = "title";
+}
+function __showResult(kind) {
+  const best = __best();
+  overlay.innerHTML = `<div class="panel">
+    <h2>${kind === "clear" ? "クリア！" : "ゲームオーバー"}</h2>
+    <div class="score">${__G.score}</div>
+    <p class="best">ベスト: ${best}</p>
+    <div><button class="btn" id="retryBtn" type="button">もう一度</button>
+    <a class="btn sub" href="../index.html">一覧へ</a></div></div>`;
+  overlay.classList.remove("hidden");
+  $("retryBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(); });
+}
+overlay.addEventListener("pointerup", (ev) => {
+  if (ev.target.closest && ev.target.closest("a,button")) return;
+  Sound.unlock();
+  if (__G.state === "title") startGame();
+  else if (__G.paused) togglePause(false);
+});
+
+function togglePause(force) {
+  if (__G.state !== "playing") return;
+  const p = typeof force === "boolean" ? force : !__G.paused;
+  __G.paused = p;
+  if (p) {
+    overlay.innerHTML = `<div class="panel"><h2>一時停止中</h2><p class="blink">${IS_TOUCH ? "タップで再開" : "クリック / スペースで再開"}</p></div>`;
+    overlay.classList.remove("hidden");
+    Input._clear();
+  } else {
+    overlay.classList.add("hidden");
+    __last = performance.now();
+  }
+}
+$("pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); togglePause(); });
+$("muteBtn").addEventListener("click", (e) => { e.stopPropagation(); Sound.unlock(); Sound.toggle(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) togglePause(true); });
+
+// ---------------- 進行 ----------------
+let GAME = null, __last = 0;
+function __fail(where, e) {
+  console.error(e);
+  __G.errors.push(`${where}: ${e && e.message ? e.message : e}`);
+  __G.state = "error";
+  overlay.innerHTML = `<div class="panel"><h2>エラーが発生しました</h2><p>${esc(e && e.message ? e.message : e)}</p></div>`;
+  overlay.classList.remove("hidden");
+}
+function __init3D() {
+  if (R3) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(DPR);
+  R3 = { renderer };
+  api.THREE = THREE; api.renderer = renderer;
+}
+function startGame() {
+  if (!GAME) return;
+  Input._clear();
+  __G.score = 0; __G.frame = 0; __G.paused = false; __G.plays++;
+  api.time = 0; api.hud("");
+  if (CFG.mode === "3d") {
+    api.scene = new THREE.Scene();
+    api.camera = new THREE.PerspectiveCamera(60, CFG.w / CFG.h, 0.1, 1000);
+    api.camera.position.set(0, 5, 10); api.camera.lookAt(0, 0, 0);
+  }
+  try { GAME.init(api); } catch (e) { return __fail("init", e); }
+  __layout();
+  overlay.classList.add("hidden");
+  __G.state = "playing"; __G.startedAt = performance.now();
+  __last = performance.now();
+}
+function __endGame(kind) {
+  if (__G.state !== "playing") return;
+  __G.state = kind; __G.endedAt = performance.now();
+  __saveBest(__G.score);
+  Sound.play(kind === "clear" ? "clear" : "over");
+  setTimeout(() => __showResult(kind), 500);
+}
+function __frame(now) {
+  requestAnimationFrame(__frame);
+  if (__G.state !== "playing" || __G.paused) {
+    if (CFG.mode === "3d" && R3 && api.scene && api.camera && !__G.noDraw) R3.renderer.render(api.scene, api.camera);
+    return;
+  }
+  const dt = Math.min(0.05, Math.max(0, (now - __last) / 1000));
+  __last = now;
+  api.time += dt;
+  try {
+    Input._begin();
+    GAME.update(dt);
+    if (__G.state === "error") return;
+    if (__G.noDraw) { /* 自動テストで長い時間を早送りするときは描画を省く */ }
+    else if (CFG.mode === "3d") R3.renderer.render(api.scene, api.camera);
+    else if (GAME.draw) { ctx2d.save(); GAME.draw(ctx2d); ctx2d.restore(); }
+    __G.frame++;
+    if (!Number.isFinite(__G.score)) throw new Error("score が数値ではありません");
+  } catch (e) { __fail("update/draw", e); }
+}
+// 自動テスト用：ゲームの状態（Game の変数）を短い文字列に要約する。操作したときとしないときの違いを比べるのに使う
+__G.peek = function () {
+  const seen = new WeakSet(); let n = 0;
+  const walk = (v, d) => {
+    if (++n > 5000 || v === null || v === undefined) return null;
+    const t = typeof v;
+    if (t === "number") return Number.isFinite(v) ? Math.round(v * 1000) / 1000 : String(v);
+    if (t === "string") return v.length > 60 ? v.slice(0, 60) : v;
+    if (t === "boolean") return v;
+    if (t !== "object" || d > 4 || seen.has(v)) return null;
+    seen.add(v);
+    if (v === api || v === Input || v === Sound || v === U || (typeof Node !== "undefined" && v instanceof Node) || ArrayBuffer.isView(v)) return null;
+    if (v.isObject3D) return [walk(v.position, d + 1), walk(v.rotation && { x: v.rotation.x, y: v.rotation.y, z: v.rotation.z }, d + 1), v.visible, v.children ? v.children.length : 0];
+    if (v.isVector2 || v.isVector3) return [v.x, v.y, v.z].map((x) => walk(x, d + 1));
+    if (Array.isArray(v)) return [v.length].concat(v.slice(0, 40).map((x) => walk(x, d + 1)));
+    if (v instanceof Map || v instanceof Set) return [v.size];
+    const o = {};
+    for (const k of Object.keys(v).slice(0, 60)) o[k] = walk(v[k], d + 1);
+    return o;
+  };
+  let s;
+  try { s = JSON.stringify(walk(GAME, 0)); } catch (_) { s = ""; }
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(16) + ":" + s.length;
+};
+function __boot(game) {
+  GAME = game;
+  if (!GAME || typeof GAME.init !== "function" || typeof GAME.update !== "function") {
+    return __fail("boot", new Error("Game オブジェクト（init / update）が定義されていません"));
+  }
+  try {
+    if (CFG.mode === "3d") { __init3D(); }
+    else { ctx2d = canvas.getContext("2d"); api.ctx = ctx2d; }
+  } catch (e) { return __fail("boot", e); }
+  __buildPad();
+  __layout();
+  if (CFG.mode !== "3d") { ctx2d.fillStyle = "#000"; ctx2d.fillRect(0, 0, CFG.w, CFG.h); }
+  __showTitle();
+  requestAnimationFrame(__frame);
+}
+
+// ===== ここからゲーム固有のコード =====
+const Game = {
+  init(api) {
+    this.api = api;
+    this.W = api.W;
+    this.H = api.H;
+
+    this.t = 0;
+    this.TOTAL = 180;
+    this.hp = 3;
+    this.invuln = 3.0;
+    this.over = false;
+    this.cleared = false;
+    this.lastSec = -1;
+    api.setScore(0);
+
+    this.ship = { x: api.W / 2, y: api.H * 0.78, r: 16, rot: 0, spin: 1.2 };
+
+    this.sparks = [];
+    this.beams = [];
+    this.parts = [];
+    this.floats = [];
+    this.embers = [];
+    this.sfxQ = [];
+
+    this.sparkTimer = 2.2;
+    this.beamTimer = 4.5;
+
+    this.gauge = 0;
+    this.inverted = false;
+    this.invTimer = 0;
+    this.gJit = 1;
+    this.gJitT = 0;
+    this.warnBeepT = 0;
+    this.bgT = 0;
+
+    this.shake = 0;
+    this.redFlash = 0;
+    this.invFlash = 0;
+    this.scrollY = 0;
+
+    this.beatTimer = 0.3;
+    this.beatIndex = 0;
+    this.emberT = 0.5;
+
+    this.bgGears = [
+      { x: 62, y: 150, r: 58, teeth: 10, spd: 0.35, a: 0 },
+      { x: 302, y: 92, r: 44, teeth: 8, spd: -0.5, a: 1.1 },
+      { x: 318, y: 332, r: 66, teeth: 12, spd: 0.28, a: 2.2 },
+      { x: 58, y: 472, r: 48, teeth: 9, spd: -0.4, a: 3.4 },
+      { x: 180, y: 592, r: 52, teeth: 10, spd: 0.3, a: 0.7 }
+    ];
+
+    this.lights = [
+      { x: 26, y: 58, ph: 0 },
+      { x: 334, y: 58, ph: 1.7 },
+      { x: 26, y: 322, ph: 3.1 },
+      { x: 334, y: 322, ph: 4.4 },
+      { x: 26, y: 542, ph: 2.2 },
+      { x: 334, y: 542, ph: 5.3 }
+    ];
+
+    for (let i = 0; i < 14; i++) {
+      this.embers.push({ x: api.util.rand(0, api.W), y: api.util.rand(0, api.H), v: api.util.rand(12, 30), ph: api.util.rand(0, 6.28) });
+    }
+  },
+
+  phase() {
+    const t = this.t;
+    return t < 60 ? 1 : (t < 120 ? 2 : 3);
+  },
+
+  fillTime() {
+    return this.phase() === 1 ? 30 : (this.phase() === 2 ? 25 : 20);
+  },
+
+  sparkSpeed() {
+    const base = this.phase() === 1 ? 100 : (this.phase() === 2 ? 150 : 200);
+    return base * this.api.util.rand(0.85, 1.2);
+  },
+
+  beamInterval() {
+    return this.phase() === 1 ? 6 : (this.phase() === 2 ? 4 : 2);
+  },
+
+  q(fn, d) {
+    this.sfxQ.push({ d: d || 0, fn: fn });
+  },
+
+  burst(x, y, n, colors, spd, life) {
+    for (let i = 0; i < n; i++) {
+      const a = this.api.util.rand(0, Math.PI * 2);
+      const s = spd * this.api.util.rand(0.3, 1);
+      this.parts.push({
+        x: x, y: y,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        r: this.api.util.rand(1.5, 3.5),
+        life: life * this.api.util.rand(0.5, 1), max: life,
+        color: this.api.util.choice(colors)
+      });
+    }
+    if (this.parts.length > 220) this.parts.splice(0, this.parts.length - 220);
+  },
+
+  floater(x, y, text, color, size) {
+    this.floats.push({ x: x, y: y, text: text, color: color, size: size || 16, life: 1.1, max: 1.1 });
+  },
+
+  startInvert() {
+    const s = this.api.sound;
+    this.inverted = true;
+    this.invTimer = 10;
+    this.gauge = 0;
+    this.invFlash = 0.6;
+    this.shake = Math.min(10, this.shake + 5);
+    s.tone(70, 0.7, 'sawtooth', 0.28, 38);
+    s.tone(140, 0.5, 'square', 0.12, 60);
+    for (let i = 0; i < 4; i++) this.q(() => s.tone(180 + i * 45, 0.05, 'square', 0.14, 140), i * 0.07);
+    this.floater(this.api.W / 2, 215, 'REVERSE GEAR!', '#ff5533', 20);
+  },
+
+  endInvert() {
+    const s = this.api.sound;
+    this.inverted = false;
+    s.tone(320, 0.25, 'square', 0.16, 90);
+    this.q(() => s.tone(220, 0.12, 'square', 0.12, 120), 0.12);
+    this.floater(this.api.W / 2, 215, 'NORMAL GEAR', '#7fd8ff', 16);
+  },
+
+  hitPlayer() {
+    const s = this.api.sound;
+    this.hp -= 1;
+    this.invuln = 0.5;
+    this.redFlash = 0.7;
+    this.shake = 12;
+    this.burst(this.ship.x, this.ship.y, 20, ['#ffd700', '#ff8833', '#ffffff'], 260, 0.5);
+    s.play('hurt');
+    s.tone(160, 0.2, 'square', 0.3, 50);
+    if (this.hp <= 0) {
+      this.burst(this.ship.x, this.ship.y, 46, ['#ffd700', '#ff4500', '#ffffff', '#ffaa33'], 340, 0.9);
+      s.play('over');
+      this.over = true;
+      this.api.gameOver();
+    }
+  },
+
+  update(dt) {
+    const api = this.api;
+    if (this.over || this.cleared) return;
+
+    this.t += dt;
+    if (this.t >= this.TOTAL) {
+      this.t = this.TOTAL;
+      this.cleared = true;
+      api.sound.play('clear');
+      api.clear();
+      return;
+    }
+
+    const ph = this.phase();
+    if (ph !== this.lastPh) {
+      this.lastPh = ph;
+      if (ph > 1) {
+        api.sound.tone(660, 0.2, 'square', 0.2, 990);
+        this.floater(api.W / 2, 250, ph === 2 ? 'SHIFT UP — SPEED 150' : 'FINAL SHIFT — SPEED 200', '#ff8833', 15);
+      }
+    }
+
+    // ---- movement (drag + keys, inverted when in reverse) ----
+    const inp = api.input;
+    const ptr = inp.pointer || {};
+    const ship = this.ship;
+    let mx = 0;
+    if (inp.left) mx -= 1;
+    if (inp.right) mx += 1;
+    mx *= 540 * dt;
+    let pdx = ptr.dx;
+    if (typeof pdx !== 'number' || !isFinite(pdx)) pdx = 0;
+    if (ptr.down) mx += pdx;
+    if (this.inverted) mx = -mx;
+    const cap = Math.max(540 * dt, 40);
+    mx = api.util.clamp(mx, -cap, cap);
+    if (!isFinite(mx)) mx = 0;
+    ship.x += mx;
+    const m = ship.r + 4;
+    ship.x = api.util.clamp(ship.x, m, api.W - m);
+    if (!isFinite(ship.x)) ship.x = api.W / 2;
+
+    const spdNow = Math.abs(mx) / Math.max(dt, 0.001);
+    ship.spin += (1.2 + Math.min(10, spdNow / 90)) * dt * (this.inverted ? -1 : 1);
+    ship.rot += ship.spin * dt;
+    this.invuln = Math.max(0, this.invuln - dt);
+
+    // ---- inversion gauge (irregular fill) ----
+    this.gJitT -= dt;
+    if (this.gJitT <= 0) {
+      this.gJitT = 2.5;
+      this.gJit = api.util.rand(0.75, 1.3);
+    }
+    if (!this.inverted) {
+      this.gauge += (100 / this.fillTime()) * this.gJit * dt;
+      if (this.gauge >= 100) this.startInvert();
+      if (this.gauge >= 80) {
+        this.warnBeepT -= dt;
+        if (this.warnBeepT <= 0) {
+          this.warnBeepT = 0.45;
+          api.sound.tone(880, 0.06, 'square', 0.1, 880);
+        }
+      } else {
+        this.warnBeepT = 0;
+      }
+    } else {
+      this.invTimer -= dt;
+      if (this.invTimer <= 0) this.endInvert();
+    }
+    const bgTarget = this.inverted ? 1 : 0;
+    this.bgT += (bgTarget - this.bgT) * Math.min(1, dt * 5);
+    if (!isFinite(this.bgT)) this.bgT = 0;
+
+    // ---- spawning (first 3s safe) ----
+    if (this.t > 3) {
+      this.sparkTimer -= dt;
+      if (this.sparkTimer <= 0) {
+        const base = ph === 1 ? 2 : (ph === 2 ? 1.5 : 1);
+        this.sparkTimer = base * api.util.rand(0.8, 1.2);
+        if (this.sparks.length < 40) {
+          const s = 20;
+          this.sparks.push({
+            x: api.util.rand(s / 2 + 18, api.W - s / 2 - 18),
+            y: -s,
+            s: s,
+            vy: this.sparkSpeed(),
+            rot: api.util.rand(0, 6.28),
+            rs: api.util.rand(-3, 3)
+          });
+        }
+      }
+      this.beamTimer -= dt;
+      if (this.beamTimer <= 0) {
+        this.beamTimer = this.beamInterval() * api.util.rand(0.8, 1.2);
+        if (this.beams.length < 5) {
+          this.beams.push({
+            side: api.util.randInt(0, 1),
+            y: api.util.rand(api.H * 0.5, api.H * 0.9),
+            len: 0,
+            maxLen: 100,
+            h: 10,
+            state: 0,
+            timer: 0
+          });
+        }
+      }
+    }
+
+    // ---- sparks ----
+    const shipRect = { x: ship.x - 12, y: ship.y - 12, w: 24, h: 24 };
+    for (let i = this.sparks.length - 1; i >= 0; i--) {
+      const b = this.sparks[i];
+      b.y += b.vy * dt;
+      b.rot += b.rs * dt;
+      if (this.invuln <= 0 && api.util.rectHit(shipRect, { x: b.x - b.s / 2, y: b.y - b.s / 2, w: b.s, h: b.s })) {
+        this.burst(b.x, b.y, 10, ['#ff4500', '#ffaa33', '#ffffff'], 200, 0.4);
+        this.sparks.splice(i, 1);
+        this.hitPlayer();
+        if (this.over) return;
+        continue;
+      }
+      if (b.y - b.s / 2 > api.H + 20) this.sparks.splice(i, 1);
+    }
+
+    // ---- beams ----
+    for (let i = this.beams.length - 1; i >= 0; i--) {
+      const b = this.beams[i];
+      if (b.state === 0) {
+        b.len += 250 * dt;
+        if (b.len >= b.maxLen) { b.len = b.maxLen; b.state = 1; b.timer = 0.9; }
+      } else if (b.state === 1) {
+        b.timer -= dt;
+        if (b.timer <= 0) b.state = 2;
+      } else {
+        b.len -= 250 * dt;
+        if (b.len <= 0) { this.beams.splice(i, 1); continue; }
+      }
+      const bx = b.side === 0 ? 0 : api.W - b.len;
+      const br = { x: bx, y: b.y, w: b.len, h: b.h };
+      if (this.invuln <= 0 && api.util.rectHit(shipRect, br)) {
+        this.hitPlayer();
+        if (this.over) return;
+      }
+    }
+
+    // ---- particles / floaters / embers ----
+    for (let i = this.parts.length - 1; i >= 0; i--) {
+      const p = this.parts[i];
+      p.life -= dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 140 * dt;
+      if (p.life <= 0) this.parts.splice(i, 1);
+    }
+    for (let i = this.floats.length - 1; i >= 0; i--) {
+      const f = this.floats[i];
+      f.life -= dt;
+      f.y -= 26 * dt;
+      if (f.life <= 0) this.floats.splice(i, 1);
+    }
+    this.emberT -= dt;
+    if (this.emberT <= 0) {
+      this.emberT = 0.4;
+      if (this.embers.length < 18) {
+        this.embers.push({ x: api.util.rand(0, api.W), y: -6, v: api.util.rand(14, 34), ph: api.util.rand(0, 6.28) });
+      }
+    }
+    for (let i = this.embers.length - 1; i >= 0; i--) {
+      const e = this.embers[i];
+      e.y += e.v * dt;
+      e.x += Math.sin(this.t * 2 + e.ph) * 8 * dt;
+      if (e.y > api.H + 8) this.embers.splice(i, 1);
+    }
+
+    // ---- fx timers ----
+    this.shake = Math.max(0, this.shake - dt * 30);
+    this.redFlash = Math.max(0, this.redFlash - dt * 1.8);
+    this.invFlash = Math.max(0, this.invFlash - dt * 1.6);
+    this.scrollY += 46 * dt;
+
+    // ---- score: 10 per survived second ----
+    const sec = Math.floor(this.t);
+    if (sec !== this.lastSec) {
+      this.lastSec = sec;
+      api.setScore(sec * 10);
+    }
+
+    // ---- delayed sfx ----
+    for (let i = this.sfxQ.length - 1; i >= 0; i--) {
+      const q = this.sfxQ[i];
+      q.d -= dt;
+      if (q.d <= 0) { q.fn(); this.sfxQ.splice(i, 1); }
+    }
+
+    // ---- mechanical BGM ----
+    const bpm = this.inverted ? 152 : 120;
+    const beat = 60 / bpm;
+    this.beatTimer -= dt;
+    if (this.beatTimer <= 0) {
+      this.beatTimer += beat;
+      this.beatIndex = (this.beatIndex + 1) % 8;
+      const s = api.sound;
+      const b = this.beatIndex;
+      if (b === 0 || b === 4) s.tone(85, 0.14, 'sine', 0.2, 40);
+      if (b === 2 || b === 6) s.tone(2600, 0.04, 'square', 0.045, 1500);
+      if (b === 4) s.tone(1800, 0.09, 'triangle', 0.06, 900);
+      const notes = [110, 0, 110, 131, 98, 0, 110, 147];
+      if (notes[b]) s.tone(notes[b], 0.18, 'sawtooth', 0.055, notes[b] * 0.97);
+    }
+  },
+
+  drawGearPath(ctx, x, y, rOut, rIn, teeth, ang) {
+    const n = teeth;
+    const step = (Math.PI * 2) / n;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a = ang + i * step;
+      const pts = [
+        [a, rIn],
+        [a + step * 0.12, rOut],
+        [a + step * 0.38, rOut],
+        [a + step * 0.5, rIn]
+      ];
+      for (let j = 0; j < 4; j++) {
+        const px = x + Math.cos(pts[j][0]) * pts[j][1];
+        const py = y + Math.sin(pts[j][0]) * pts[j][1];
+        if (i === 0 && j === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+    }
+    ctx.closePath();
+  },
+
+  draw(ctx) {
+    const api = this.api;
+    const W = api.W, H = api.H;
+    const u = api.util;
+    const t = this.t;
+
+    // ---- background: lerp #1a1a1a -> #2a0a0a ----
+    const bt = this.bgT;
+    const bgc = 'rgb(' + Math.round(u.lerp(26, 42, bt)) + ',' + Math.round(u.lerp(26, 10, bt)) + ',' + Math.round(u.lerp(26, 10, bt)) + ')';
+    ctx.fillStyle = bgc;
+    ctx.fillRect(0, 0, W, H);
+
+    // iron plate seams (scrolling)
+    const gap = 84;
+    const off = this.scrollY % gap;
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 2;
+    for (let y = -gap + off; y < H + gap; y += gap) {
+      ctx.beginPath();
+      ctx.moveTo(14, y);
+      ctx.lineTo(W - 14, y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    for (let y = -gap + off; y < H + gap; y += gap) {
+      for (let x = 34; x < W - 20; x += 46) {
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, 7);
+        ctx.fill();
+      }
+    }
+
+    // big slow factory gears
+    for (let i = 0; i < this.bgGears.length; i++) {
+      const g = this.bgGears[i];
+      g.a += g.spd * (1 / 60);
+      this.drawGearPath(ctx, g.x, g.y, g.r, g.r * 0.78, g.teeth, g.a);
+      ctx.fillStyle = 'rgba(255,255,255,0.035)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, g.r * 0.28, 0, 7);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fill();
+    }
+
+    // side pipes
+    ctx.fillStyle = '#232323';
+    ctx.fillRect(0, 0, 14, H);
+    ctx.fillRect(W - 14, 0, 14, H);
+    ctx.fillStyle = '#2e2e2e';
+    const poff = this.scrollY % 64;
+    for (let y = -64 + poff; y < H + 64; y += 64) {
+      ctx.fillRect(0, y, 14, 6);
+      ctx.fillRect(W - 14, y, 14, 6);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(12, 0, 2, H);
+    ctx.fillRect(W - 14, 0, 2, H);
+
+    // warning lights
+    const blinkSpd = this.inverted ? 10 : 3;
+    for (let i = 0; i < this.lights.length; i++) {
+      const L = this.lights[i];
+      const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * blinkSpd + L.ph));
+      ctx.beginPath();
+      ctx.arc(L.x, L.y, 4, 0, 7);
+      ctx.fillStyle = 'rgba(255,80,40,' + a.toFixed(3) + ')';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(L.x, L.y, 9, 0, 7);
+      ctx.fillStyle = 'rgba(255,80,40,' + (a * 0.2).toFixed(3) + ')';
+      ctx.fill();
+    }
+
+    // embers
+    for (let i = 0; i < this.embers.length; i++) {
+      const e = this.embers[i];
+      const a = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(t * 3 + e.ph));
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, 1.6, 0, 7);
+      ctx.fillStyle = 'rgba(255,150,60,' + a.toFixed(3) + ')';
+      ctx.fill();
+    }
+
+    // ---- beams (black, warning edges) ----
+    for (let i = 0; i < this.beams.length; i++) {
+      const b = this.beams[i];
+      if (b.len <= 1) continue;
+      const bx = b.side === 0 ? 0 : W - b.len;
+      ctx.fillStyle = '#333333';
+      ctx.fillRect(bx, b.y, b.len, b.h);
+      ctx.fillStyle = '#4a4a4a';
+      ctx.fillRect(bx, b.y, b.len, 2);
+      const tipX = b.side === 0 ? bx + b.len : bx;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 12);
+      ctx.fillStyle = 'rgba(255,69,0,' + (0.4 + 0.6 * pulse).toFixed(3) + ')';
+      ctx.fillRect(tipX - 3, b.y - 2, 6, b.h + 4);
+      ctx.fillStyle = 'rgba(255,69,0,0.18)';
+      ctx.fillRect(bx, b.y - 3, b.len, 3);
+      ctx.fillRect(bx, b.y + b.h, b.len, 3);
+    }
+
+    // ---- sparks (red squares) ----
+    for (let i = 0; i < this.sparks.length; i++) {
+      const b = this.sparks[i];
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.rot);
+      ctx.fillStyle = 'rgba(255,69,0,0.22)';
+      ctx.fillRect(-b.s * 0.7, -b.s * 0.7, b.s * 1.4, b.s * 1.4);
+      ctx.fillStyle = '#FF4500';
+      ctx.fillRect(-b.s / 2, -b.s / 2, b.s, b.s);
+      ctx.fillStyle = '#ff9966';
+      ctx.fillRect(-b.s / 2 + 3, -b.s / 2 + 3, b.s - 6, b.s - 6);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-2, -2, 4, 4);
+      ctx.restore();
+    }
+
+    // ---- ship: yellow gear ----
+    const ship = this.ship;
+    const blink = this.invuln > 0 && Math.floor(t * 16) % 2 === 0;
+    ctx.save();
+    if (blink) ctx.globalAlpha = 0.35;
+    const glowR = 40;
+    const gr = ctx.createRadialGradient(ship.x, ship.y, 4, ship.x, ship.y, glowR);
+    gr.addColorStop(0, 'rgba(255,215,0,0.30)');
+    gr.addColorStop(1, 'rgba(255,215,0,0)');
+    ctx.fillStyle = gr;
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y, glowR, 0, 7);
+    ctx.fill();
+
+    this.drawGearPath(ctx, ship.x, ship.y, 19, 13.5, 8, ship.rot);
+    ctx.fillStyle = '#FFD700';
+    ctx.fill();
+    ctx.strokeStyle = '#b8860b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y, 9, 0, 7);
+    ctx.fillStyle = '#e6b800';
+    ctx.fill();
+    ctx.strokeStyle = '#8a6d00';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ship.x, ship.y, 3.5, 0, 7);
+    ctx.fillStyle = '#3a2e00';
+    ctx.fill();
+    ctx.restore();
+
+    // ---- particles ----
+    for (let i = 0; i < this.parts.length; i++) {
+      const p = this.parts[i];
+      const a = Math.max(0, p.life / p.max);
+      ctx.globalAlpha = a;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, 7);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ---- flashes ----
+    if (this.redFlash > 0) {
+      ctx.fillStyle = 'rgba(255,40,20,' + (this.redFlash * 0.35).toFixed(3) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (this.invFlash > 0) {
+      ctx.fillStyle = 'rgba(255,60,30,' + (this.invFlash * 0.3).toFixed(3) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (bt > 0.02) {
+      const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.75);
+      vg.addColorStop(0, 'rgba(255,0,0,0)');
+      vg.addColorStop(1, 'rgba(180,0,0,' + (bt * 0.25).toFixed(3) + ')');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // ================= HUD =================
+    // top bar
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, 40);
+    ctx.fillStyle = 'rgba(255,215,0,0.35)';
+    ctx.fillRect(0, 40, W, 1);
+
+    // HP gears (left)
+    for (let i = 0; i < 3; i++) {
+      const hx = 22 + i * 26;
+      this.drawGearPath(ctx, hx, 20, 9, 6.5, 8, t * 1.5 + i);
+      ctx.fillStyle = i < this.hp ? '#FFD700' : 'rgba(255,255,255,0.15)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(hx, 20, 3, 0, 7);
+      ctx.fillStyle = i < this.hp ? '#3a2e00' : 'rgba(0,0,0,0.3)';
+      ctx.fill();
+    }
+
+    // time remaining (center)
+    const remain = Math.max(0, this.TOTAL - this.t);
+    const mm = Math.floor(remain / 60);
+    const ss = Math.floor(remain % 60);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = remain <= 30 ? (Math.floor(t * 4) % 2 === 0 ? '#ff5533' : '#ffd0c0') : '#e8e8e8';
+    ctx.fillText(mm + ':' + (ss < 10 ? '0' : '') + ss, W / 2, 20);
+
+    // score (right)
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText(String(api.score).padStart(6, '0'), W - 14, 20);
+
+    // ---- inversion gauge (upper center) ----
+    const gx = W / 2, gy = 118, gr2 = 26;
+    ctx.beginPath();
+    ctx.arc(gx, gy, gr2 + 5, 0, 7);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    if (this.inverted) {
+      const frac = Math.max(0, this.invTimer / 10);
+      ctx.beginPath();
+      ctx.arc(gx, gy, gr2, 0, 7);
+      ctx.strokeStyle = 'rgba(255,69,0,0.3)';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(gx, gy, gr2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+      ctx.strokeStyle = '#ff4500';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+      // reversed arrows
+      ctx.save();
+      ctx.translate(gx, gy);
+      ctx.rotate(t * 3);
+      ctx.fillStyle = '#ff5533';
+      for (let i = 0; i < 3; i++) {
+        ctx.rotate((Math.PI * 2) / 3);
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(6, -4);
+        ctx.lineTo(6, 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.font = 'bold 13px monospace';
+      ctx.fillStyle = '#ff8866';
+      ctx.fillText(this.invTimer.toFixed(1) + 's', gx, gy + gr2 + 14);
+      if (Math.floor(t * 4) % 2 === 0) {
+        ctx.font = 'bold 12px monospace';
+        ctx.fillStyle = '#ff5533';
+        ctx.fillText('◀ REVERSED ▶', gx, gy + gr2 + 30);
+      }
+    } else {
+      const frac = Math.min(1, this.gauge / 100);
+      ctx.beginPath();
+      ctx.arc(gx, gy, gr2, 0, 7);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+      const hot = this.gauge >= 80;
+      ctx.beginPath();
+      ctx.arc(gx, gy, gr2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+      ctx.strokeStyle = hot ? (Math.floor(t * 8) % 2 === 0 ? '#ff4500' : '#ffb080') : '#FFD700';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+      // gear icon inside
+      this.drawGearPath(ctx, gx, gy, 11, 8, 8, t * 2);
+      ctx.fillStyle = hot ? '#ff6633' : '#FFD700';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(gx, gy, 3, 0, 7);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fill();
+      ctx.font = 'bold 11px monospace';
+      ctx.fillStyle = hot ? '#ff8866' : 'rgba(255,255,255,0.6)';
+      ctx.fillText(Math.floor(this.gauge) + '%', gx, gy + gr2 + 14);
+      if (hot && Math.floor(t * 4) % 2 === 0) {
+        ctx.font = 'bold 12px monospace';
+        ctx.fillStyle = '#ff5533';
+        ctx.fillText('REVERSE INCOMING', gx, gy + gr2 + 30);
+      }
+    }
+
+    // ---- floaters ----
+    for (let i = 0; i < this.floats.length; i++) {
+      const f = this.floats[i];
+      const a = Math.max(0, f.life / f.max);
+      ctx.globalAlpha = a;
+      ctx.font = 'bold ' + f.size + 'px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+};
+// ===== ここまで =====
+__boot(typeof Game !== "undefined" ? Game : null);
+</script>
+</body>
+</html>
