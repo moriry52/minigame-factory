@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>とびねこチェイン</title>
+<link rel="icon" type="image/png" href="../favicon-96x96.png?v=6065284c" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="../favicon.svg?v=6065284c" />
+<link rel="shortcut icon" href="../favicon.ico?v=6065284c" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png?v=6065284c" />
+<link rel="manifest" href="../site.webmanifest?v=6065284c" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:none}
+#screen{display:block;background:#000;touch-action:none;image-rendering:auto}
+#hud{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:14px;font-weight:700;
+  text-shadow:0 1px 3px #000;pointer-events:none}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,6,12,.72);backdrop-filter:blur(2px);touch-action:none}
+#overlay.hidden{display:none}
+.panel{width:min(92%,420px);max-height:92%;overflow:auto;background:#151a2b;border:1px solid #2c3554;
+  border-radius:16px;padding:20px 18px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.panel h1{font-size:24px;margin-bottom:8px;letter-spacing:.02em}
+.panel h2{font-size:20px;margin-bottom:8px}
+.panel p{font-size:14px;line-height:1.6;color:#c9d0ea}
+.panel .box{margin:12px 0;padding:10px 12px;background:#0e1220;border-radius:10px;text-align:left}
+.panel .box b{display:block;font-size:12px;color:#8fa0d8;margin-bottom:4px}
+.panel ul{padding-left:1.2em;font-size:13px;line-height:1.6;color:#c9d0ea}
+.panel .score{font-size:40px;font-weight:800;margin:6px 0}
+.panel .best{font-size:13px;color:#8fa0d8}
+.btn{display:inline-block;margin:10px 6px 0;padding:12px 22px;border-radius:999px;border:0;
+  background:#5b7cff;color:#fff;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn.sub{background:#2c3554}
+.blink{animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.35}}
+#pad{display:none;height:190px;flex:none;position:relative;touch-action:none}
+#pad.show{display:block}
+.pbtn{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:rgba(120,140,220,.18);border:2px solid rgba(160,180,255,.35);color:#dfe6ff;
+  font-weight:800;font-size:18px;touch-action:none}
+.pbtn.on{background:rgba(120,150,255,.55)}
+.pbtn.dir{border-radius:14px;width:58px;height:58px;font-size:20px}
+.pbtn.act{width:78px;height:78px;font-size:15px;text-align:center;line-height:1.1;padding:4px}
+#topbar{flex:none;height:38px;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 8px}
+#topbar a,#topbar button{background:rgba(20,24,40,.7);border:1px solid #2c3554;color:#cfd7f5;font-size:13px;
+  padding:6px 10px;border-radius:999px;text-decoration:none;cursor:pointer}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="app">
+<div id="topbar">
+    <button id="muteBtn" type="button" aria-label="音のオン・オフ">🔊</button>
+    <button id="pauseBtn" type="button" aria-label="一時停止">⏸</button>
+    <a href="../index.html">一覧</a>
+  </div>
+  <div id="stage">
+    <canvas id="screen"></canvas>
+    <div id="hud"></div>
+    <div id="overlay"></div>
+  </div>
+  <div id="pad"></div>
+</div>
+<script type="application/json" id="meta">{"id": "20261125-141835-gemini-flash", "title": "とびねこチェイン", "summary": "森の動物を踏み台にして空中を跳び渡る3D連鎖アクション。大連鎖で高得点を狙うと足場が消えるスリルを駆け抜けろ！", "rules": ["スワイプで猫がその方向へ跳躍し、動物を踏むと足場にして連続ジャンプできる", "踏まれた動物は前方に弾き飛び、他の動物を巻き込んで大連鎖（コンボ）と大量得点が発生する", "60秒以内に目標スコアを達成し、森の最奥にある「大樹のゴール」へ飛び込めばステージクリア", "足場を巻き込みすぎて踏み台を失い、地面の泥沼に落ちると大幅なタイムロスになる"], "controls": {"スマホ": "スワイプで跳躍する方向を決定。空中タップで真下へ急降下。", "PC": "矢印キーまたはマウスドラッグで跳躍。クリックで真下へ急降下。"}, "cfg": {"mode": "3d", "w": 360, "h": 640, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script type="module">
+import * as THREE from "three";
+"use strict";
+// ============================================================
+// ミニゲーム共通ランタイム（入力・画面サイズ・音・タイトル/結果画面）
+// ゲーム側は `const Game = { init(api), update(dt), draw(ctx) }` を定義するだけ。
+// ============================================================
+const META = JSON.parse(document.getElementById("meta").textContent);
+const CFG = META.cfg;                       // { mode:'2d'|'3d', w, h, scheme, buttons:[{key,label}] }
+const IS_TOUCH = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || ("ontouchstart" in window);
+const __G = (window.__GAME__ = { state: "boot", frame: 0, score: 0, errors: [], startedAt: 0, endedAt: 0, plays: 0 });
+window.addEventListener("error", (e) => __G.errors.push(String(e.message || e)));
+window.addEventListener("unhandledrejection", (e) => __G.errors.push(String(e.reason)));
+
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), canvas = $("screen"), overlay = $("overlay"), hudEl = $("hud"), padEl = $("pad");
+
+// ---------------- ユーティリティ ----------------
+const U = {
+  rand: (a = 0, b = 1) => a + Math.random() * (b - a),
+  randInt: (a, b) => Math.floor(a + Math.random() * (b - a + 1)),
+  choice: (arr) => arr[Math.floor(Math.random() * arr.length)],
+  clamp: (v, a, b) => (v < a ? a : v > b ? b : v),
+  lerp: (a, b, t) => a + (b - a) * t,
+  dist: (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1),
+  angle: (x1, y1, x2, y2) => Math.atan2(y2 - y1, x2 - x1),
+  rectHit: (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y,
+  circleHit: (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < (a.r + b.r) ** 2,
+  hsl: (h, s = 80, l = 60, a = 1) => `hsla(${h},${s}%,${l}%,${a})`,
+};
+
+// ---------------- 入力 ----------------
+// 押しっぱなし: left/right/up/down/a/b   押した瞬間: leftPressed ... aPressed/bPressed
+// pointer: {x,y,nx,ny,down,pressed,released,dx,dy}  (x,y はゲーム座標, nx,ny は -1..1)
+// swipe: 'left'|'right'|'up'|'down'|null （このフレームでスワイプがあった時だけ）
+// tap: このフレームで短いタップ/クリックがあったら true（pointer.x,y がその位置）
+const DIRS = ["left", "right", "up", "down"];
+const KEYMAP = {
+  ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
+  ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down",
+  KeyZ: "a", Space: "a", Enter: "a", KeyJ: "a", KeyX: "b", ShiftLeft: "b", ShiftRight: "b", KeyK: "b",
+};
+const Input = {
+  left: false, right: false, up: false, down: false, a: false, b: false,
+  leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, aPressed: false, bPressed: false,
+  pointer: { x: 0, y: 0, nx: 0, ny: 0, down: false, pressed: false, released: false, dx: 0, dy: 0 },
+  swipe: null, tap: false,
+  _key: {}, _pad: {}, _one: false, _prev: {}, _pulse: {}, _ptrPressed: false, _ptrReleased: false,
+  _dx: 0, _dy: 0, _swipe: null, _tap: false, _ignoreUntilUp: false,
+  _begin() {
+    for (const k of [...DIRS, "a", "b"]) {
+      const held = !!(this._key[k] || this._pad[k] || (k === "a" && this._one));
+      const pulse = !!this._pulse[k];
+      this[k] = held || pulse;
+      this[k + "Pressed"] = (held && !this._prev[k]) || pulse;
+      this._prev[k] = held;
+    }
+    this._pulse = {};
+    const p = this.pointer;
+    p.pressed = this._ptrPressed; p.released = this._ptrReleased; p.dx = this._dx; p.dy = this._dy;
+    this.swipe = this._swipe; this.tap = this._tap;
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+  },
+  _clear() {
+    this._key = {}; this._pad = {}; this._one = false; this._pulse = {};
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+    this.pointer.down = false;
+    for (const k of [...DIRS, "a", "b"]) this._prev[k] = false;
+    this._ignoreUntilUp = true;
+  },
+};
+
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); e.preventDefault(); return; }
+  if (e.code === "KeyM") { Sound.toggle(); return; }
+  const k = KEYMAP[e.code];
+  if (!k) return;
+  e.preventDefault();
+  Sound.unlock();
+  if (__G.state === "title" || __G.state === "over" || __G.state === "clear") {
+    if (k === "a" && !e.repeat && (__G.state === "title" || performance.now() - __G.endedAt > 700)) startGame();
+    return;
+  }
+  if (__G.paused) { if (k === "a" && !e.repeat) togglePause(false); return; }
+  Input._key[k] = true;
+});
+window.addEventListener("keyup", (e) => { const k = KEYMAP[e.code]; if (k) Input._key[k] = false; });
+window.addEventListener("blur", () => { Input._key = {}; });
+
+// ステージ上のポインタ（タッチ・マウス共通）
+let __viewRect = { left: 0, top: 0, width: 1, height: 1 };
+let __ptrStart = null;
+function __toGame(ev) {
+  const r = __viewRect;
+  const u = (ev.clientX - r.left) / r.width, v = (ev.clientY - r.top) / r.height;
+  return { x: u * __G.W, y: v * __G.H, nx: u * 2 - 1, ny: -(v * 2 - 1) };
+}
+let __activePtr = null;
+stage.addEventListener("pointerdown", (ev) => {
+  Sound.unlock();
+  if (__G.state !== "playing" || __G.paused) return;
+  if (__activePtr !== null && __activePtr !== ev.pointerId) return;
+  __activePtr = ev.pointerId;
+  try { stage.setPointerCapture(ev.pointerId); } catch (_) {}
+  Input._ignoreUntilUp = false;
+  const g = __toGame(ev);
+  Object.assign(Input.pointer, g, { down: true });
+  Input._ptrPressed = true;
+  __ptrStart = { x: ev.clientX, y: ev.clientY, t: performance.now(), gx: g.x, gy: g.y };
+  if (CFG.scheme === "ワンボタン") Input._one = true;
+  ev.preventDefault();
+});
+stage.addEventListener("pointermove", (ev) => {
+  if (ev.pointerId !== __activePtr) {
+    if (ev.pointerType === "mouse" && __activePtr === null) Object.assign(Input.pointer, __toGame(ev));
+    return;
+  }
+  const g = __toGame(ev);
+  Input._dx += g.x - Input.pointer.x; Input._dy += g.y - Input.pointer.y;
+  Object.assign(Input.pointer, g);
+});
+function __ptrEnd(ev) {
+  if (ev.pointerId !== __activePtr) return;
+  __activePtr = null;
+  Input.pointer.down = false;
+  Input._ptrReleased = true;
+  Input._one = false;
+  if (__ptrStart) {
+    const dx = ev.clientX - __ptrStart.x, dy = ev.clientY - __ptrStart.y;
+    const d = Math.hypot(dx, dy), dt = performance.now() - __ptrStart.t;
+    if (d > 28 && dt < 600) {
+      const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+      Input._swipe = dir;
+      if (CFG.scheme === "タップ/スワイプ") Input._pulse[dir] = true;
+    } else if (d <= 28 && dt < 500) {
+      Input._tap = true;
+      Input.pointer.x = __ptrStart.gx; Input.pointer.y = __ptrStart.gy;
+    }
+  }
+  __ptrStart = null;
+}
+stage.addEventListener("pointerup", __ptrEnd);
+stage.addEventListener("pointercancel", __ptrEnd);
+stage.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault());
+
+// 仮想パッド（タッチ端末 かつ 操作=仮想パッド のときだけ表示）
+function __buildPad() {
+  if (!(IS_TOUCH && CFG.scheme === "仮想パッド")) return;
+  padEl.classList.add("show");
+  const dirs = [["up", "▲", 66, 14], ["left", "◀", 8, 72], ["right", "▶", 124, 72], ["down", "▼", 66, 130]];
+  let html = "";
+  for (const [k, s, x, y] of dirs) html += `<div class="pbtn dir" data-btn="${k}" style="left:${x + 10}px;top:${y - 6}px">${s}</div>`;
+  const btns = (CFG.buttons && CFG.buttons.length ? CFG.buttons : [{ key: "A", label: "A" }]).slice(0, 2);
+  btns.forEach((b, i) => {
+    const right = i === 0 ? 18 : 108, top = i === 0 ? 60 : 92;
+    html += `<div class="pbtn act" data-btn="${b.key.toLowerCase()}" style="right:${right}px;top:${top - 20}px">${b.label || b.key}</div>`;
+  });
+  padEl.innerHTML = html;
+  const owner = {};
+  const refresh = () => {
+    const on = {};
+    for (const id in owner) if (owner[id]) on[owner[id]] = true;
+    Input._pad = on;
+    padEl.querySelectorAll(".pbtn").forEach((el) => el.classList.toggle("on", !!on[el.dataset.btn]));
+  };
+  const hit = (ev) => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return el && el.dataset && el.dataset.btn ? el.dataset.btn : null;
+  };
+  padEl.addEventListener("pointerdown", (ev) => {
+    Sound.unlock(); ev.preventDefault();
+    try { padEl.setPointerCapture(ev.pointerId); } catch (_) {}
+    if (__G.state !== "playing") { if (__G.state !== "boot") startGame(); return; }
+    if (__G.paused) { togglePause(false); return; }
+    owner[ev.pointerId] = hit(ev); refresh();
+  });
+  padEl.addEventListener("pointermove", (ev) => { if (ev.pointerId in owner) { owner[ev.pointerId] = hit(ev); refresh(); } });
+  const up = (ev) => { delete owner[ev.pointerId]; refresh(); };
+  padEl.addEventListener("pointerup", up);
+  padEl.addEventListener("pointercancel", up);
+}
+
+// ---------------- 音（Web Audio で合成。外部ファイル不要） ----------------
+const Sound = {
+  ctx: null, muted: false,
+  unlock() {
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { this.ctx = null; }
+  },
+  toggle() {
+    this.muted = !this.muted;
+    $("muteBtn").textContent = this.muted ? "🔇" : "🔊";
+    try { localStorage.setItem("mgf:mute", this.muted ? "1" : "0"); } catch (_) {}
+  },
+  // tone(周波数Hz, 長さ秒, 波形, 音量0-1, 終わりの周波数)
+  tone(freq = 440, dur = 0.1, type = "square", vol = 0.15, slideTo = null) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+    } catch (_) {}
+  },
+  noise(dur = 0.2, vol = 0.2) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const n = Math.floor(this.ctx.sampleRate * dur), buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+      const d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); g.gain.value = vol;
+      s.buffer = buf; s.connect(g).connect(this.ctx.destination); s.start();
+    } catch (_) {}
+  },
+  // 用意済みの効果音: shot hit explode jump coin powerup hurt select clear over
+  play(name) {
+    const P = {
+      shot: () => this.tone(880, 0.07, "square", 0.08, 440),
+      hit: () => this.tone(220, 0.08, "square", 0.12, 110),
+      explode: () => this.noise(0.35, 0.25),
+      jump: () => this.tone(300, 0.15, "triangle", 0.18, 700),
+      coin: () => { this.tone(988, 0.06, "square", 0.1); setTimeout(() => this.tone(1319, 0.12, "square", 0.1), 60); },
+      powerup: () => this.tone(400, 0.3, "triangle", 0.18, 1200),
+      hurt: () => this.tone(200, 0.25, "sawtooth", 0.15, 60),
+      select: () => this.tone(660, 0.05, "square", 0.08),
+      clear: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, "triangle", 0.18), i * 110)),
+      over: () => [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, "triangle", 0.18), i * 180)),
+    };
+    (P[name] || P.select)();
+  },
+};
+try { if (localStorage.getItem("mgf:mute") === "1") Sound.toggle(); } catch (_) {}
+
+// ---------------- 画面サイズ ----------------
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+let ctx2d = null, R3 = null;
+function __layout() {
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  if (CFG.mode === "3d") {
+    const ar = CFG.w / CFG.h;
+    let w = sw, h = sw / ar;
+    if (h > sh) { h = sh; w = sh * ar; }
+    canvas.style.width = w + "px"; canvas.style.height = h + "px";
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (R3) { R3.renderer.setSize(w, h, false); if (api.camera && api.camera.isPerspectiveCamera) { api.camera.aspect = ar; api.camera.updateProjectionMatrix(); } }
+  } else {
+    const s = Math.min(sw / CFG.w, sh / CFG.h);
+    canvas.style.width = CFG.w * s + "px"; canvas.style.height = CFG.h * s + "px";
+    canvas.width = Math.round(CFG.w * s * DPR); canvas.height = Math.round(CFG.h * s * DPR);
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (ctx2d) { ctx2d.setTransform(canvas.width / CFG.w, 0, 0, canvas.height / CFG.h, 0, 0); ctx2d.imageSmoothingEnabled = true; }
+  }
+  __viewRect = canvas.getBoundingClientRect();
+}
+window.addEventListener("resize", () => setTimeout(__layout, 50));
+window.addEventListener("orientationchange", () => setTimeout(__layout, 200));
+
+// ---------------- ゲームに渡す api ----------------
+const api = {
+  W: CFG.w, H: CFG.h, input: Input, sound: Sound, util: U, isTouch: IS_TOUCH,
+  ctx: null,                               // 2D: CanvasRenderingContext2D
+  THREE: null, scene: null, camera: null, renderer: null,   // 3D のみ
+  time: 0,                                 // プレイ開始からの秒数
+  get score() { return __G.score; },
+  setScore(n) { __G.score = Math.floor(n) || 0; },
+  addScore(n) { __G.score = Math.floor(__G.score + n) || 0; },
+  gameOver() { __endGame("over"); },
+  clear() { __endGame("clear"); },
+  hud(text) { hudEl.textContent = text == null ? "" : String(text); },
+};
+
+// ---------------- 画面（タイトル / 結果 / 一時停止） ----------------
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function __best() { try { return +localStorage.getItem("mgf:best:" + META.id) || 0; } catch (_) { return 0; } }
+function __saveBest(s) { try { if (s > __best()) localStorage.setItem("mgf:best:" + META.id, s); } catch (_) {} }
+const START_HINT = IS_TOUCH ? "画面をタップしてスタート" : "クリック / スペースキーでスタート";
+
+function __showTitle() {
+  const ctl = (META.controls || {})[IS_TOUCH ? "スマホ" : "PC"] || "";
+  const rules = (META.rules || []).map((r) => `<li>${esc(r)}</li>`).join("");
+  overlay.innerHTML = `<div class="panel">
+    <h1>${esc(META.title)}</h1><p>${esc(META.summary)}</p>
+    <div class="box"><b>ルール</b><ul>${rules}</ul></div>
+    <div class="box"><b>操作（${IS_TOUCH ? "スマホ" : "PC"}）</b><p>${esc(ctl)}</p></div>
+    ${__best() ? `<p class="best">ベスト: ${__best()}</p>` : ""}
+    <p class="blink" style="margin-top:10px;font-weight:700">${START_HINT}</p></div>`;
+  overlay.classList.remove("hidden");
+  __G.state = "title";
+}
+function __showResult(kind) {
+  const best = __best();
+  overlay.innerHTML = `<div class="panel">
+    <h2>${kind === "clear" ? "クリア！" : "ゲームオーバー"}</h2>
+    <div class="score">${__G.score}</div>
+    <p class="best">ベスト: ${best}</p>
+    <div><button class="btn" id="retryBtn" type="button">もう一度</button>
+    <a class="btn sub" href="../index.html">一覧へ</a></div></div>`;
+  overlay.classList.remove("hidden");
+  $("retryBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(); });
+}
+overlay.addEventListener("pointerup", (ev) => {
+  if (ev.target.closest && ev.target.closest("a,button")) return;
+  Sound.unlock();
+  if (__G.state === "title") startGame();
+  else if (__G.paused) togglePause(false);
+});
+
+function togglePause(force) {
+  if (__G.state !== "playing") return;
+  const p = typeof force === "boolean" ? force : !__G.paused;
+  __G.paused = p;
+  if (p) {
+    overlay.innerHTML = `<div class="panel"><h2>一時停止中</h2><p class="blink">${IS_TOUCH ? "タップで再開" : "クリック / スペースで再開"}</p></div>`;
+    overlay.classList.remove("hidden");
+    Input._clear();
+  } else {
+    overlay.classList.add("hidden");
+    __last = performance.now();
+  }
+}
+$("pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); togglePause(); });
+$("muteBtn").addEventListener("click", (e) => { e.stopPropagation(); Sound.unlock(); Sound.toggle(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) togglePause(true); });
+
+// ---------------- 進行 ----------------
+let GAME = null, __last = 0;
+function __fail(where, e) {
+  console.error(e);
+  __G.errors.push(`${where}: ${e && e.message ? e.message : e}`);
+  __G.state = "error";
+  overlay.innerHTML = `<div class="panel"><h2>エラーが発生しました</h2><p>${esc(e && e.message ? e.message : e)}</p></div>`;
+  overlay.classList.remove("hidden");
+}
+function __init3D() {
+  if (R3) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(DPR);
+  R3 = { renderer };
+  api.THREE = THREE; api.renderer = renderer;
+}
+function startGame() {
+  if (!GAME) return;
+  Input._clear();
+  __G.score = 0; __G.frame = 0; __G.paused = false; __G.plays++;
+  api.time = 0; api.hud("");
+  if (CFG.mode === "3d") {
+    api.scene = new THREE.Scene();
+    api.camera = new THREE.PerspectiveCamera(60, CFG.w / CFG.h, 0.1, 1000);
+    api.camera.position.set(0, 5, 10); api.camera.lookAt(0, 0, 0);
+  }
+  try { GAME.init(api); } catch (e) { return __fail("init", e); }
+  __layout();
+  overlay.classList.add("hidden");
+  __G.state = "playing"; __G.startedAt = performance.now();
+  __last = performance.now();
+}
+function __endGame(kind) {
+  if (__G.state !== "playing") return;
+  __G.state = kind; __G.endedAt = performance.now();
+  __saveBest(__G.score);
+  Sound.play(kind === "clear" ? "clear" : "over");
+  setTimeout(() => __showResult(kind), 500);
+}
+function __frame(now) {
+  requestAnimationFrame(__frame);
+  if (__G.state !== "playing" || __G.paused) {
+    if (CFG.mode === "3d" && R3 && api.scene && api.camera) R3.renderer.render(api.scene, api.camera);
+    return;
+  }
+  const dt = Math.min(0.05, Math.max(0, (now - __last) / 1000));
+  __last = now;
+  api.time += dt;
+  try {
+    Input._begin();
+    GAME.update(dt);
+    if (__G.state === "error") return;
+    if (CFG.mode === "3d") R3.renderer.render(api.scene, api.camera);
+    else if (GAME.draw) { ctx2d.save(); GAME.draw(ctx2d); ctx2d.restore(); }
+    __G.frame++;
+    if (!Number.isFinite(__G.score)) throw new Error("score が数値ではありません");
+  } catch (e) { __fail("update/draw", e); }
+}
+function __boot(game) {
+  GAME = game;
+  if (!GAME || typeof GAME.init !== "function" || typeof GAME.update !== "function") {
+    return __fail("boot", new Error("Game オブジェクト（init / update）が定義されていません"));
+  }
+  try {
+    if (CFG.mode === "3d") { __init3D(); }
+    else { ctx2d = canvas.getContext("2d"); api.ctx = ctx2d; }
+  } catch (e) { return __fail("boot", e); }
+  __buildPad();
+  __layout();
+  if (CFG.mode !== "3d") { ctx2d.fillStyle = "#000"; ctx2d.fillRect(0, 0, CFG.w, CFG.h); }
+  __showTitle();
+  requestAnimationFrame(__frame);
+}
+
+// ===== ここからゲーム固有のコード =====
+const Game = {
+  init(api) {
+    this.api = api;
+    const { THREE, scene, camera } = api;
+
+    // カメラ設定（奥へ進む縦長クォータービュー）
+    camera.fov = 60;
+    camera.near = 0.1;
+    camera.far = 200;
+    camera.updateProjectionMatrix();
+
+    // ライト
+    const hemiLight = new THREE.HemisphereLight(0xdff0d8, 0x224422, 0.9);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfff4d0, 1.2);
+    dirLight.position.set(20, 40, -10);
+    scene.add(dirLight);
+
+    // 共通マテリアル＆ジオメトリ
+    this.geoBox = new THREE.BoxGeometry(1, 1, 1);
+    this.geoSphere = new THREE.SphereGeometry(0.5, 12, 12);
+    this.geoCylinder = new THREE.CylinderGeometry(0.6, 0.7, 1.2, 12);
+    this.geoCone = new THREE.ConeGeometry(0.3, 0.5, 8);
+
+    this.matMud = new THREE.MeshStandardMaterial({ color: 0x3d2714, roughness: 0.9 });
+    this.matTreeLeaf = new THREE.MeshStandardMaterial({ color: 0x2e6f40, roughness: 0.6 });
+    this.matTreeTrunk = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8 });
+    this.matStump = new THREE.MeshStandardMaterial({ color: 0x6e4a2d, roughness: 0.7 });
+    this.matStumpTop = new THREE.MeshStandardMaterial({ color: 0x9c7446, roughness: 0.7 });
+    this.matCat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.4 });
+    this.matCatPink = new THREE.MeshStandardMaterial({ color: 0xffa0b0, roughness: 0.5 });
+    this.matSquirrel = new THREE.MeshStandardMaterial({ color: 0xe68a00, roughness: 0.5 });
+    this.matRabbit = new THREE.MeshStandardMaterial({ color: 0x4a90e2, roughness: 0.5 });
+    this.matBoar = new THREE.MeshStandardMaterial({ color: 0xd9383a, roughness: 0.5 });
+    this.matGold = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffaa00, emissiveIntensity: 0.4, roughness: 0.3 });
+
+    // ステージ生成
+    this.stageLength = 105;
+    this.targetScore = 15000;
+    this.timeLeft = 60.0;
+    this.score = 0;
+    this.combo = 0;
+    this.slowMoTimer = 0;
+    this.mudStunTimer = 0;
+    this.isCleared = false;
+    this.isGameOver = false;
+
+    // 泥沼地面
+    const mudFloor = new THREE.Mesh(new THREE.PlaneGeometry(30, this.stageLength + 40), this.matMud);
+    mudFloor.rotation.x = -Math.PI / 2;
+    mudFloor.position.set(0, -0.2, (this.stageLength) / 2);
+    scene.add(mudFloor);
+
+    // 背景の森の木々
+    for (let z = -10; z < this.stageLength + 30; z += 6) {
+      this.createBgTree(-9 - Math.random() * 4, z + Math.random() * 3);
+      this.createBgTree(9 + Math.random() * 4, z + Math.random() * 3);
+    }
+
+    // 足場・動物の管理
+    this.stumps = [];
+    this.animals = [];
+    this.projectiles = [];
+    this.particles = [];
+
+    // スタート地点の切り株
+    this.createStump(0, 0, 1.2);
+    this.createStump(0, 3, 1.2);
+
+    // 経路上の切り株と動物生成
+    for (let z = 6; z < this.stageLength - 6; z += 3.8) {
+      const numOptions = Math.random() < 0.4 ? 2 : 1;
+      const xOffsets = numOptions === 2 ? [-1.8, 1.8] : [(Math.random() - 0.5) * 3];
+
+      xOffsets.forEach(x => {
+        const radius = Math.max(0.6, 1.1 - (z / this.stageLength) * 0.4);
+        this.createStump(x, z, radius);
+
+        // 動物配置（確率85%）
+        if (Math.random() < 0.85) {
+          const r = Math.random();
+          let type = 0; // 0:リス, 1:ウサギ, 2:イノシシ
+          if (r > 0.7) type = 2;
+          else if (r > 0.4) type = 1;
+          this.createAnimal(x, 1.2, z, type);
+        }
+      });
+    }
+
+    // ゴール大樹
+    this.goalZ = this.stageLength;
+    this.createGoalTree(0, this.goalZ);
+
+    // プレイヤー（白猫）
+    this.player = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 10), this.matCat);
+    body.position.y = 0.4;
+    this.player.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), this.matCat);
+    head.position.set(0, 0.7, 0.2);
+    this.player.add(head);
+
+    const earL = new THREE.Mesh(this.geoCone, this.matCatPink);
+    earL.position.set(-0.15, 0.95, 0.2);
+    earL.rotation.z = 0.2;
+    this.player.add(earL);
+
+    const earR = new THREE.Mesh(this.geoCone, this.matCatPink);
+    earR.position.set(0.15, 0.95, 0.2);
+    earR.rotation.z = -0.2;
+    this.player.add(earR);
+
+    this.player.position.set(0, 1.2, 0);
+    scene.add(this.player);
+
+    // プレイヤー物理パラメータ
+    this.pVel = new THREE.Vector3(0, 0, 0);
+    this.isGrounded = true;
+    this.currentStump = null;
+
+    // スワイプ検知用
+    this.dragStart = null;
+  },
+
+  createBgTree(x, z) {
+    const trunk = new THREE.Mesh(this.geoCylinder, this.matTreeTrunk);
+    trunk.scale.set(0.8, 6, 0.8);
+    trunk.position.set(x, 3, z);
+    this.api.scene.add(trunk);
+
+    const leaf = new THREE.Mesh(this.geoCone, this.matTreeLeaf);
+    leaf.scale.set(4, 5, 4);
+    leaf.position.set(x, 6.5, z);
+    this.api.scene.add(leaf);
+  },
+
+  createStump(x, z, radius) {
+    const group = new THREE.Group();
+    const mesh = new THREE.Mesh(this.geoCylinder, this.matStump);
+    mesh.scale.set(radius, 1.2, radius);
+    mesh.position.y = 0.6;
+    group.add(mesh);
+
+    const topMesh = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.9, radius * 0.9, 0.05, 12), this.matStumpTop);
+    topMesh.position.y = 1.21;
+    group.add(topMesh);
+
+    group.position.set(x, 0, z);
+    this.api.scene.add(group);
+    this.stumps.push({ group, x, z, radius, topY: 1.2 });
+  },
+
+  createAnimal(x, y, z, type) {
+    const group = new THREE.Group();
+    let mat = this.matSquirrel;
+    let s = 0.45;
+    if (type === 1) { mat = this.matRabbit; s = 0.5; }
+    else if (type === 2) { mat = this.matBoar; s = 0.65; }
+
+    const mesh = new THREE.Mesh(this.geoSphere, mat);
+    mesh.scale.set(s, s, s);
+    mesh.position.y = s * 0.8;
+    group.add(mesh);
+
+    // 耳・角などの飾り
+    const ear1 = new THREE.Mesh(this.geoCone, mat);
+    ear1.scale.set(s * 0.4, s * 0.8, s * 0.4);
+    ear1.position.set(-s * 0.35, s * 1.3, 0);
+    group.add(ear1);
+
+    const ear2 = new THREE.Mesh(this.geoCone, mat);
+    ear2.scale.set(s * 0.4, s * 0.8, s * 0.4);
+    ear2.position.set(s * 0.35, s * 1.3, 0);
+    group.add(ear2);
+
+    group.position.set(x, y, z);
+    this.api.scene.add(group);
+    this.animals.push({ group, x, y: y + s * 0.8, z, type, radius: s * 1.1, active: true });
+  },
+
+  createGoalTree(x, z) {
+    const trunk = new THREE.Mesh(this.geoCylinder, this.matGold);
+    trunk.scale.set(3.5, 9, 3.5);
+    trunk.position.set(x, 4.5, z);
+    this.api.scene.add(trunk);
+
+    const crown = new THREE.Mesh(this.geoSphere, this.matGold);
+    crown.scale.set(6, 4, 6);
+    crown.position.set(x, 9.5, z);
+    this.api.scene.add(crown);
+
+    const goalRing = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.3, 8, 24), this.matGold);
+    goalRing.rotation.x = Math.PI / 2;
+    goalRing.position.set(x, 2.5, z - 1.5);
+    this.api.scene.add(goalRing);
+
+    this.goalPos = new THREE.Vector3(x, 2.5, z - 1.5);
+  },
+
+  spawnParticle(pos, color, count = 5) {
+    for (let i = 0; i < count; i++) {
+      const p = new THREE.Mesh(this.geoSphere, color === 'gold' ? this.matGold : this.matMud);
+      p.scale.setScalar(0.15 + Math.random() * 0.15);
+      p.position.copy(pos);
+      this.api.scene.add(p);
+      this.particles.push({
+        mesh: p,
+        vel: new THREE.Vector3(
+          (Math.random() - 0.5) * 6,
+          Math.random() * 5 + 2,
+          (Math.random() - 0.5) * 6
+        ),
+        life: 0.6 + Math.random() * 0.3
+      });
+    }
+  },
+
+  update(dt) {
+    if (this.isCleared || this.isGameOver) return;
+
+    const { input, sound } = this.api;
+
+    // タイムカウントダウン
+    this.timeLeft -= dt;
+    if (this.timeLeft <= 0) {
+      this.timeLeft = 0;
+      this.isGameOver = true;
+      sound.play('gameover');
+      this.api.gameOver();
+      return;
+    }
+
+    // スローモーション制御（連鎖中の猶予時間）
+    let simDt = dt;
+    if (this.slowMoTimer > 0) {
+      this.slowMoTimer -= dt;
+      simDt = dt * 0.25;
+    }
+
+    // 泥沼スタン処理
+    if (this.mudStunTimer > 0) {
+      this.mudStunTimer -= dt;
+      this.player.rotation.z = Math.sin(this.api.time * 20) * 0.2;
+      this.player.position.y = 0.1 + Math.sin(this.api.time * 15) * 0.05;
+      if (this.mudStunTimer <= 0) {
+        // スタン解除：最寄りの切り株へ救済復帰
+        this.respawnToNearestStump();
+      }
+      this.updateHud();
+      return;
+    }
+
+    // --- 入力処理 ---
+    let jumpDir = null;
+    let fastDrop = false;
+
+    // スワイプ / ポインター入力
+    if (input.pointer.pressed) {
+      this.dragStart = { x: input.pointer.x, y: input.pointer.y };
+    }
+    if (input.pointer.released && this.dragStart) {
+      const dx = input.pointer.x - this.dragStart.x;
+      const dy = input.pointer.y - this.dragStart.y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq > 900) { // スワイプ
+        jumpDir = new THREE.Vector2(dx, -dy).normalize();
+      } else {
+        // 短いタップ
+        fastDrop = true;
+      }
+      this.dragStart = null;
+    }
+
+    // キーボード / ボタン入力サポート
+    if (input.upPressed || input.leftPressed || input.rightPressed || input.downPressed) {
+      const kx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      const kz = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+      if (kx !== 0 || kz !== 0) {
+        jumpDir = new THREE.Vector2(kx, kz).normalize();
+      }
+    }
+    if (input.aPressed || input.bPressed) {
+      fastDrop = true;
+    }
+
+    // 急降下
+    if (fastDrop && !this.isGrounded) {
+      this.pVel.y = -22;
+      this.pVel.x *= 0.2;
+      this.pVel.z *= 0.2;
+      sound.play('down');
+    }
+
+    // 跳躍（着地中または踏み台スロー時に入力可能）
+    if (jumpDir && (this.isGrounded || this.slowMoTimer > 0)) {
+      this.isGrounded = false;
+      this.slowMoTimer = 0;
+      const power = 11;
+      // jumpDir.y は画面上（前進Z+）、jumpDir.x は横X
+      const forwardForce = Math.max(0.4, jumpDir.y * 1.1);
+      this.pVel.set(jumpDir.x * 7, power, forwardForce * 9.5);
+      sound.play('jump');
+    }
+
+    // --- プレイヤー物理更新 ---
+    if (!this.isGrounded) {
+      this.pVel.y -= 26 * simDt;
+      this.player.position.x += this.pVel.x * simDt;
+      this.player.position.y += this.pVel.y * simDt;
+      this.player.position.z += this.pVel.z * simDt;
+
+      // 向きを速度方向に
+      if (this.pVel.lengthSq() > 1) {
+        this.player.rotation.y = Math.atan2(this.pVel.x, this.pVel.z);
+      }
+
+      // --- 踏み台判定（動物） ---
+      for (let i = 0; i < this.animals.length; i++) {
+        const a = this.animals[i];
+        if (!a.active) continue;
+        const dx = this.player.position.x - a.x;
+        const dy = this.player.position.y - a.y;
+        const dz = this.player.position.z - a.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (dist < 1.1 && this.pVel.y <= 0) {
+          // 動物を踏んだ！バウンド＆射出連鎖開始
+          a.active = false;
+          this.api.scene.remove(a.group);
+          this.triggerBounceOnAnimal(a);
+          break;
+        }
+      }
+
+      // --- 切り株着地判定 ---
+      for (const st of this.stumps) {
+        const dx = this.player.position.x - st.x;
+        const dz = this.player.position.z - st.z;
+        const dist2D = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist2D < st.radius + 0.2 && this.player.position.y <= st.topY && this.player.position.y >= st.topY - 0.7 && this.pVel.y < 0) {
+          this.player.position.y = st.topY;
+          this.pVel.set(0, 0, 0);
+          this.isGrounded = true;
+          this.combo = 0; // 切り株着地でコンボリセット
+          sound.play('hit');
+          break;
+        }
+      }
+
+      // --- ゴール判定 ---
+      const gDist = this.player.position.distanceTo(this.goalPos);
+      if (gDist < 3.2) {
+        if (this.score >= this.targetScore) {
+          this.isCleared = true;
+          sound.play('clear');
+          this.api.clear();
+          return;
+        }
+      }
+
+      // --- 泥沼落下判定 ---
+      if (this.player.position.y <= 0.1) {
+        this.player.position.y = 0.05;
+        this.pVel.set(0, 0, 0);
+        this.isGrounded = false;
+        this.mudStunTimer = 4.5;
+        this.combo = 0;
+        sound.play('blip');
+        this.spawnParticle(this.player.position, 'mud', 15);
+      }
+    } else {
+      // 地面にいる時のわずかな呼吸アニメ
+      this.player.scale.set(1, 1 + Math.sin(this.api.time * 8) * 0.04, 1);
+    }
+
+    // --- 射出された動物の連鎖処理 ---
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const p = this.projectiles[i];
+      p.life -= simDt;
+      p.mesh.position.addScaledVector(p.vel, simDt);
+      p.mesh.rotation.x += simDt * 10;
+      p.mesh.rotation.y += simDt * 12;
+
+      // 他の動物との誘爆判定
+      for (let j = 0; j < this.animals.length; j++) {
+        const target = this.animals[j];
+        if (!target.active) continue;
+        const d = p.mesh.position.distanceTo(target.group.position);
+        if (d < target.radius + 0.6) {
+          target.active = false;
+          this.api.scene.remove(target.group);
+          this.addChainScore(target.type);
+          this.spawnChainProjectiles(target.type, target.group.position);
+          this.spawnParticle(target.group.position, 'gold', 8);
+          sound.play('coin');
+          break;
+        }
+      }
+
+      if (p.life <= 0 || p.mesh.position.y < 0) {
+        this.api.scene.remove(p.mesh);
+        this.projectiles.splice(i, 1);
+      }
+    }
+
+    // --- パーティクル更新 ---
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const pt = this.particles[i];
+      pt.life -= dt;
+      pt.vel.y -= 15 * dt;
+      pt.mesh.position.addScaledVector(pt.vel, dt);
+      if (pt.life <= 0) {
+        this.api.scene.remove(pt.mesh);
+        this.particles.splice(i, 1);
+      }
+    }
+
+    // --- カメラ追従 ---
+    const targetCamX = this.player.position.x * 0.4;
+    const targetCamY = this.player.position.y + 6.5;
+    const targetCamZ = this.player.position.z - 8.5;
+    this.api.camera.position.x += (targetCamX - this.api.camera.position.x) * (dt * 5);
+    this.api.camera.position.y += (targetCamY - this.api.camera.position.y) * (dt * 5);
+    this.api.camera.position.z += (targetCamZ - this.api.camera.position.z) * (dt * 5);
+    this.api.camera.lookAt(this.player.position.x * 0.2, this.player.position.y + 1.2, this.player.position.z + 4);
+
+    this.updateHud();
+  },
+
+  triggerBounceOnAnimal(animal) {
+    this.combo++;
+    this.addChainScore(animal.type);
+    this.slowMoTimer = 0.25; // 空中スロー発動
+
+    // バウンド跳躍
+    this.pVel.y = 12.5;
+    this.pVel.z = Math.max(this.pVel.z, 3.5);
+
+    // 踏まれた動物を前方に発射
+    this.spawnChainProjectiles(animal.type, animal.group.position);
+    this.spawnParticle(animal.group.position, 'gold', 10);
+    this.api.sound.play('jump');
+  },
+
+  spawnChainProjectiles(type, pos) {
+    const { scene } = this.api;
+    let count = 1;
+    let speed = 20;
+
+    if (type === 1) { // ウサギ：2方向に分裂
+      count = 2;
+    } else if (type === 2) { // イノシシ：高速巨大
+      speed = 28;
+    }
+
+    for (let k = 0; k < count; k++) {
+      let mat = this.matSquirrel;
+      if (type === 1) mat = this.matRabbit;
+      if (type === 2) mat = this.matBoar;
+
+      const pMesh = new THREE.Mesh(this.geoSphere, mat);
+      pMesh.scale.setScalar(type === 2 ? 0.6 : 0.4);
+      pMesh.position.copy(pos);
+      scene.add(pMesh);
+
+      let vx = 0;
+      if (type === 1) vx = (k === 0 ? -4 : 4);
+      const vel = new THREE.Vector3(vx, 2, speed);
+
+      this.projectiles.push({
+        mesh: pMesh,
+        vel: vel,
+        life: 1.8
+      });
+    }
+  },
+
+  addChainScore(animalType) {
+    let base = 250;
+    if (animalType === 1) base = 350;
+    if (animalType === 2) base = 500;
+
+    const gained = base * Math.max(1, this.combo);
+    this.score += gained;
+    this.api.setScore(this.score);
+  },
+
+  respawnToNearestStump() {
+    let nearest = this.stumps[0];
+    let minDist = 9999;
+    for (const st of this.stumps) {
+      if (st.z >= this.player.position.z - 2) {
+        const d = Math.abs(st.z - this.player.position.z);
+        if (d < minDist) {
+          minDist = d;
+          nearest = st;
+        }
+      }
+    }
+    this.player.position.set(nearest.x, nearest.topY, nearest.z);
+    this.player.rotation.set(0, 0, 0);
+    this.pVel.set(0, 0, 0);
+    this.isGrounded = true;
+    this.api.sound.play('hit');
+  },
+
+  updateHud() {
+    const timeStr = Math.max(0, Math.ceil(this.timeLeft));
+    let status = `TIME: ${timeStr}s | SCORE: ${this.score} / ${this.targetScore}`;
+    if (this.combo > 1) {
+      status += `\nCHAIN x${this.combo}!`;
+    }
+    if (this.mudStunTimer > 0) {
+      status += `\n[泥沼脱出中! ${this.mudStunTimer.toFixed(1)}s]`;
+    }
+    this.api.hud(status);
+  }
+};
+// ===== ここまで =====
+__boot(typeof Game !== "undefined" ? Game : null);
+</script>
+</body>
+</html>
