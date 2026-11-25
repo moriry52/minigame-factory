@@ -495,6 +495,9 @@ const Game = {
     this.laserTimer = 3.0;
     this.bossHitFlash = 0;
 
+    this.swipeKey = null;
+    this.swipeConsumed = false;
+
     this.lanes = [-1.56, -0.78, 0, 0.78, 1.56];
     this.lane = 2;
     this.targetX = 0;
@@ -829,28 +832,93 @@ const Game = {
 
     const sw = input.swipe;
     if (sw) {
-      if (typeof sw === 'object') {
-        const dx = Number(sw.dx) || Number(sw.x) || 0;
-        const dy = Number(sw.dy) || Number(sw.y) || 0;
-        if (Math.abs(dx) > Math.abs(dy)) {
-          if (dx > 0.05) { this.step(1, 0); moved = true; }
-          else if (dx < -0.05) { this.step(-1, 0); moved = true; }
-        } else {
-          if (dy > 0.05) { this.step(0, 1); moved = true; }
-          else if (dy < -0.05) { this.step(0, -1); moved = true; }
-        }
-      } else if (typeof sw === 'string') {
-        if (sw === 'left') this.step(-1, 0), moved = true;
-        else if (sw === 'right') this.step(1, 0), moved = true;
-        else if (sw === 'up') this.step(0, -1), moved = true;
-        else if (sw === 'down') this.step(0, 1), moved = true;
+      const key = this.getSwipeKey(sw);
+      if (key !== this.swipeKey) {
+        this.swipeKey = key;
+        this.swipeConsumed = false;
       }
+
+      if (!this.swipeConsumed && this.processSwipe(sw)) {
+        this.swipeConsumed = true;
+        moved = true;
+      }
+    } else {
+      this.swipeKey = null;
+      this.swipeConsumed = false;
     }
 
     if (input.leftPressed) { this.step(-1, 0); moved = true; }
     if (input.rightPressed) { this.step(1, 0); moved = true; }
     if (input.upPressed) { this.step(0, -1); moved = true; }
     if (input.downPressed) { this.step(0, 1); moved = true; }
+  },
+
+  getSwipeKey(sw) {
+    if (typeof sw === 'string') {
+      return 's:' + sw;
+    }
+    if (sw && typeof sw === 'object') {
+      if (sw.id !== undefined && sw.id !== null) return 'id:' + sw.id;
+      if (sw.time !== undefined && sw.time !== null) return 't:' + sw.time;
+      if (sw.startX !== undefined && sw.startY !== undefined) return 'st:' + sw.startX + ',' + sw.startY;
+      return 'active';
+    }
+    return 'bool';
+  },
+
+  processSwipe(sw) {
+    if (typeof sw === 'string') {
+      if (sw === 'left') { this.step(-1, 0); return true; }
+      if (sw === 'right') { this.step(1, 0); return true; }
+      if (sw === 'up') { this.step(0, -1); return true; }
+      if (sw === 'down') { this.step(0, 1); return true; }
+      return false;
+    }
+
+    if (!sw || typeof sw !== 'object') return false;
+
+    const hasDX = sw.dx !== undefined && sw.dx !== null;
+    const hasDY = sw.dy !== undefined && sw.dy !== null;
+
+    let dx = hasDX ? Number(sw.dx) : 0;
+    let dy = hasDY ? Number(sw.dy) : 0;
+
+    if (!Number.isFinite(dx)) dx = 0;
+    if (!Number.isFinite(dy)) dy = 0;
+
+    if (!hasDX && !hasDY) {
+      const x = Number(sw.x);
+      const y = Number(sw.y);
+      if (Number.isFinite(x)) dx = x;
+      if (Number.isFinite(y)) dy = y;
+    }
+
+    const mag = Math.max(Math.abs(dx), Math.abs(dy));
+    if (mag <= 0) return false;
+
+    const threshold = mag > 1.5 ? 22 : 0.12;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > threshold) {
+        this.step(1, 0);
+        return true;
+      }
+      if (dx < -threshold) {
+        this.step(-1, 0);
+        return true;
+      }
+    } else {
+      if (dy > threshold) {
+        this.step(0, 1);
+        return true;
+      }
+      if (dy < -threshold) {
+        this.step(0, -1);
+        return true;
+      }
+    }
+
+    return false;
   },
 
   step(dx, dz) {
