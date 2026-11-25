@@ -481,7 +481,7 @@ const Game = {
       vy: 0,
       angle: -Math.PI / 2,
       radius: 10,
-      lightRadius: 150,
+      lightRadius: 108,
       hp: 3,
       maxHp: 3,
       invincibleTimer: 0,
@@ -586,11 +586,11 @@ const Game = {
       this.api.sound.tone(200, 0.08, 'sine', 0.2, 100);
     }
 
-    // 視界半径の減衰（従来の2倍サイズ基準）
-    if (p.lightRadius > 144) {
+    // 視界半径の減衰（通常状態は108）
+    if (p.lightRadius > 108) {
       p.lightRadius -= 16 * dt;
     } else {
-      p.lightRadius = 144;
+      p.lightRadius = 108;
     }
 
     // スポーン処理（最初の3秒は安全）
