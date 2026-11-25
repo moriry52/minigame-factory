@@ -483,7 +483,6 @@ const Game = {
       tail: []
     };
     this.gravity = 1; // 1: 下, -1: 上
-    this.lastGrav = 1;
     this.timeLeft = 180; // 3分
     this.combo = 0;
     this.comboTimer = 0;
@@ -499,7 +498,10 @@ const Game = {
 
     this.spawnTimer = 1.0;
     this.gemTimer = 1.5;
-    this.itemTimer = 15.0;
+    this.itemTimer = 18.0;
+
+    // 上下の危険壁（デンジャーゾーン）の厚み
+    this.wallHeight = 28;
   },
 
   update(dt) {
@@ -517,7 +519,7 @@ const Game = {
 
     // 進行度と難易度
     const progress = (180 - this.timeLeft) / 180; // 0..1
-    const baseSpeed = 160 + progress * 140;
+    const baseSpeed = 160 + progress * 130;
 
     // 自機移動（ドラッグ相対値 + キー入力）
     let mx = 0;
@@ -532,8 +534,49 @@ const Game = {
     if (input.up) my -= keySpeed;
     if (input.down) my += keySpeed;
 
+    // 自機の可動域をデンジャー壁の内側に制限（天井・床の安全マージン）
+    const minY = this.wallHeight + p.r + 2;
+    const maxY = api.H - this.wallHeight - p.r - 2;
     p.x = api.util.clamp(p.x + mx, 30, api.W - 30);
-    p.y = api.util.clamp(p.y + my, 22, api.H - 22);
+    p.y = api.util.clamp(p.y + my, minY, maxY);
+
+    // 壁（デンジャーゾーン）に極端に近接した場合の電撃ダメージ
+    if (p.invuln <= 0) {
+      const nearCeil = p.y <= minY + 4;
+      const nearFloor = p.y >= maxY - 4;
+      if (nearCeil || nearFloor) {
+        if (p.shield) {
+          p.shield = false;
+          p.invuln = 1.0;
+          this.shake = 0.2;
+          api.sound.play('hurt');
+          this.addFloatingText('SHIELD BREAK!', p.x, p.y + (nearCeil ? 25 : -25), '#00ffff');
+        } else {
+          p.invuln = 1.0;
+          this.combo = 0;
+          const loss = Math.min(api.score, 300);
+          api.addScore(-loss);
+          this.shake = 0.3;
+          api.sound.play('hurt');
+          this.addFloatingText(`WALL SHOCK! -${loss}`, p.x, p.y + (nearCeil ? 25 : -25), '#ff0055');
+        }
+        // 押し戻し
+        p.y += nearCeil ? 15 : -15;
+        // 電撃スパーク
+        for (let k = 0; k < 10; k++) {
+          this.particles.push({
+            x: p.x + api.util.rand(-10, 10),
+            y: nearCeil ? this.wallHeight : api.H - this.wallHeight,
+            vx: api.util.rand(-100, 100),
+            vy: nearCeil ? api.util.rand(50, 150) : api.util.rand(-150, -50),
+            life: 0.3,
+            maxLife: 0.3,
+            color: '#ffff00',
+            size: 3
+          });
+        }
+      }
+    }
 
     // 軌跡
     p.tail.push({ x: p.x, y: p.y });
@@ -544,18 +587,17 @@ const Game = {
     const newGrav = p.y < 180 ? -1 : 1;
     if (newGrav !== this.gravity) {
       this.gravity = newGrav;
-      this.flash = 0.3;
-      // 重力反転音: 低音ピッチシフト
-      api.sound.tone(newGrav === -1 ? 160 : 320, 0.2, 'sawtooth', 0.2, newGrav === -1 ? 320 : 160);
-      for (let i = 0; i < 15; i++) {
+      this.flash = 0.25;
+      api.sound.tone(newGrav === -1 ? 180 : 360, 0.18, 'sawtooth', 0.25, newGrav === -1 ? 360 : 180);
+      for (let i = 0; i < 16; i++) {
         this.particles.push({
           x: api.util.rand(0, api.W),
           y: 180,
-          vx: api.util.rand(-80, 80),
-          vy: this.gravity * api.util.rand(50, 200),
-          life: 0.4,
-          maxLife: 0.4,
-          color: this.gravity === -1 ? '#0ff' : '#f0f',
+          vx: api.util.rand(-60, 60),
+          vy: this.gravity * api.util.rand(60, 220),
+          life: 0.35,
+          maxLife: 0.35,
+          color: this.gravity === -1 ? '#00e5ff' : '#ff0077',
           size: 3
         });
       }
@@ -575,47 +617,44 @@ const Game = {
     // 背景スクロール
     this.bgOffset = (this.bgOffset + baseSpeed * dt) % 40;
 
-    // スポーン処理
-    // 開始3秒は安全
+    // スポーン処理（開始3秒は安全）
     if (api.time > 3.0) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0) {
-        this.spawnTimer = api.util.rand(0.7, 1.4) - progress * 0.4;
-        const hp = (progress > 0.5 && Math.random() < 0.4) ? 2 : 1;
+        this.spawnTimer = api.util.rand(0.8, 1.4) - progress * 0.4;
+        const hp = (progress > 0.4 && Math.random() < 0.35) ? 2 : 1;
         this.spikes.push({
           x: api.W + 30,
-          y: api.util.rand(60, api.H - 60),
-          vx: -baseSpeed * api.util.rand(0.9, 1.2),
+          // 中央付近から出現し、プレイヤーが反転させないと壁に届かない
+          y: api.util.rand(100, api.H - 100),
+          vx: -baseSpeed * api.util.rand(0.95, 1.25),
           vy: 0,
-          w: hp === 2 ? 36 : 28,
-          h: hp === 2 ? 36 : 28,
+          w: hp === 2 ? 34 : 26,
           hp: hp,
-          maxHp: hp,
           rot: 0
         });
       }
 
       this.gemTimer -= dt;
       if (this.gemTimer <= 0) {
-        this.gemTimer = api.util.rand(1.0, 2.0);
+        this.gemTimer = api.util.rand(1.2, 2.2);
         this.gems.push({
           x: api.W + 20,
-          y: api.util.rand(50, api.H - 50),
-          vx: -baseSpeed * 0.9,
-          vy: 0,
-          baseY: 0,
+          y: api.util.rand(70, api.H - 70),
+          vx: -baseSpeed * 0.85,
+          vy: api.util.rand(-40, 40),
           t: api.util.rand(0, Math.PI * 2)
         });
       }
 
       this.itemTimer -= dt;
       if (this.itemTimer <= 0) {
-        this.itemTimer = api.util.rand(20, 30);
+        this.itemTimer = api.util.rand(22, 32);
         if (!p.shield) {
           this.items.push({
             x: api.W + 20,
-            y: api.util.rand(80, api.H - 80),
-            vx: -baseSpeed * 0.8,
+            y: api.util.rand(90, api.H - 90),
+            vx: -baseSpeed * 0.75,
             vy: 0
           });
         }
@@ -623,7 +662,7 @@ const Game = {
     }
 
     // スパイク更新
-    const gravForce = 900;
+    const gravForce = 950;
     for (let i = this.spikes.length - 1; i >= 0; i--) {
       const s = this.spikes[i];
       s.x += s.vx * dt;
@@ -632,45 +671,56 @@ const Game = {
       s.rot += (s.vx < 0 ? -1 : 1) * 3 * dt;
 
       // 上下の壁に衝突判定
-      const hitCeil = s.y <= 16;
-      const hitFloor = s.y >= api.H - 16;
-      if (hitCeil || hitFloor) {
-        s.hp--;
-        this.shake = 0.2;
-        if (s.hp <= 0) {
-          // 粉砕クラッシュ！
-          this.combo++;
-          this.comboTimer = 3.0;
-          const pts = 200 * this.combo;
-          api.addScore(pts);
-          this.addFloatingText(`+${pts} (${this.combo}COMBO!)`, s.x, hitCeil ? 35 : api.H - 35, '#ff3366');
-          api.sound.play('explode');
+      const hitCeil = s.y <= this.wallHeight + s.w * 0.4;
+      const hitFloor = s.y >= api.H - this.wallHeight - s.w * 0.4;
 
-          // ガラス破砕パーティクル
-          for (let k = 0; k < 18; k++) {
-            this.particles.push({
-              x: s.x,
-              y: hitCeil ? 16 : api.H - 16,
-              vx: api.util.rand(-150, 150),
-              vy: hitCeil ? api.util.rand(50, 250) : api.util.rand(-250, -50),
-              life: 0.5,
-              maxLife: 0.5,
-              color: '#ff0055',
-              size: api.util.rand(3, 7)
-            });
+      if (hitCeil || hitFloor) {
+        // 重力反転により逆側の壁から十分加速された衝突（高速激突）のみ破壊！
+        // 居座りで壁際を低速移動しているだけでは壊れない
+        const impactSpeed = Math.abs(s.vy);
+        const canSmash = impactSpeed >= 320;
+
+        if (canSmash) {
+          s.hp--;
+          this.shake = 0.22;
+          if (s.hp <= 0) {
+            // クラッシュ粉砕！
+            this.combo++;
+            this.comboTimer = 3.0;
+            const pts = 200 * this.combo;
+            api.addScore(pts);
+            this.addFloatingText(`+${pts} (${this.combo} COMBO!)`, s.x, hitCeil ? 50 : api.H - 50, '#ff0055');
+            api.sound.play('explode');
+
+            for (let k = 0; k < 16; k++) {
+              this.particles.push({
+                x: s.x,
+                y: hitCeil ? this.wallHeight : api.H - this.wallHeight,
+                vx: api.util.rand(-140, 140),
+                vy: hitCeil ? api.util.rand(60, 260) : api.util.rand(-260, -60),
+                life: 0.45,
+                maxLife: 0.45,
+                color: '#ff0055',
+                size: api.util.rand(3, 7)
+              });
+            }
+            this.spikes.splice(i, 1);
+            continue;
+          } else {
+            // 耐久残ありの強烈バウンド
+            s.vy = hitCeil ? 240 : -240;
+            s.y = hitCeil ? this.wallHeight + s.w * 0.5 : api.H - this.wallHeight - s.w * 0.5;
+            api.sound.tone(220, 0.1, 'triangle', 0.25);
           }
-          this.spikes.splice(i, 1);
-          continue;
         } else {
-          // 耐久残ありのバウンド
-          s.vy = hitCeil ? 150 : -150;
-          s.y = hitCeil ? 18 : api.H - 18;
-          api.sound.tone(200, 0.1, 'triangle', 0.2);
+          // 速度不足の接触（居座り放置時など）：壊れず跳ね返って画面内に残る
+          s.vy = hitCeil ? 140 : -140;
+          s.y = hitCeil ? this.wallHeight + s.w * 0.5 : api.H - this.wallHeight - s.w * 0.5;
         }
       }
 
       // 自機との衝突
-      if (p.invuln <= 0 && api.util.dist(p.x, p.y, s.x, s.y) < p.r + s.w * 0.4) {
+      if (p.invuln <= 0 && api.util.dist(p.x, p.y, s.x, s.y) < p.r + s.w * 0.45) {
         if (p.shield) {
           p.shield = false;
           p.invuln = 1.0;
@@ -678,7 +728,6 @@ const Game = {
           api.sound.play('hurt');
           this.addFloatingText('SHIELD BREAK!', p.x, p.y - 20, '#00ffff');
         } else {
-          // 被弾ペナルティ（即死ではなくスコア減少とスタン）
           p.invuln = 1.2;
           this.combo = 0;
           const loss = Math.min(api.score, 500);
@@ -704,25 +753,33 @@ const Game = {
       if (s.x < -40) this.spikes.splice(i, 1);
     }
 
-    // ジェム更新
+    // ジェム更新（壁に張り付かず、中央エリアをバウンド・浮遊する）
     for (let i = this.gems.length - 1; i >= 0; i--) {
       const g = this.gems[i];
       g.x += g.vx * dt;
-      g.vy += this.gravity * 400 * dt;
-      g.vy = api.util.clamp(g.vy, -180, 180);
-      g.y = api.util.clamp(g.y + g.vy * dt, 24, api.H - 24);
+      g.vy += this.gravity * 360 * dt;
+      g.y += g.vy * dt;
       g.t += dt * 4;
+
+      // 上下の壁で跳ね返る（張り付き防止）
+      if (g.y <= this.wallHeight + 14) {
+        g.y = this.wallHeight + 14;
+        g.vy = Math.abs(g.vy) * 0.75 + 40;
+      } else if (g.y >= api.H - this.wallHeight - 14) {
+        g.y = api.H - this.wallHeight - 14;
+        g.vy = -Math.abs(g.vy) * 0.75 - 40;
+      }
 
       if (api.util.dist(p.x, p.y, g.x, g.y) < p.r + 14) {
         api.addScore(100);
-        api.sound.tone(600 + (this.combo % 8) * 100, 0.1, 'sine', 0.15);
+        api.sound.tone(620 + (this.combo % 8) * 80, 0.1, 'sine', 0.15);
         this.addFloatingText('+100', g.x, g.y, '#ffff00');
         for (let k = 0; k < 8; k++) {
           this.particles.push({
             x: g.x,
             y: g.y,
-            vx: api.util.rand(-80, 80),
-            vy: api.util.rand(-80, 80),
+            vx: api.util.rand(-70, 70),
+            vy: api.util.rand(-70, 70),
             life: 0.3,
             maxLife: 0.3,
             color: '#ffea00',
@@ -739,8 +796,17 @@ const Game = {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
       it.x += it.vx * dt;
-      it.vy += this.gravity * 300 * dt;
-      it.y = api.util.clamp(it.y + it.vy * dt, 30, api.H - 30);
+      it.vy += this.gravity * 260 * dt;
+      it.y += it.vy * dt;
+
+      // アイテムも壁で跳ね返る
+      if (it.y <= this.wallHeight + 16) {
+        it.y = this.wallHeight + 16;
+        it.vy = 80;
+      } else if (it.y >= api.H - this.wallHeight - 16) {
+        it.y = api.H - this.wallHeight - 16;
+        it.vy = -80;
+      }
 
       if (api.util.dist(p.x, p.y, it.x, it.y) < p.r + 16) {
         p.shield = true;
@@ -764,12 +830,11 @@ const Game = {
     // フローティングテキスト更新
     for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
       const ft = this.floatingTexts[i];
-      ft.y -= 40 * dt;
+      ft.y -= 35 * dt;
       ft.life -= dt;
       if (ft.life <= 0) this.floatingTexts.splice(i, 1);
     }
 
-    // 画面揺れ・フラッシュ減衰
     if (this.shake > 0) this.shake -= dt;
     if (this.flash > 0) this.flash -= dt;
   },
@@ -797,43 +862,35 @@ const Game = {
 
     // ネオングリッド (上半分シアン、下半分マゼンタ)
     ctx.lineWidth = 1;
-    // 上半分
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.12)';
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
     for (let x = -this.bgOffset; x < api.W; x += 40) {
       ctx.beginPath();
-      ctx.moveTo(x, 0);
+      ctx.moveTo(x, this.wallHeight);
       ctx.lineTo(x, 180);
       ctx.stroke();
     }
-    for (let y = 0; y < 180; y += 30) {
+    for (let y = this.wallHeight; y < 180; y += 30) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(api.W, y);
       ctx.stroke();
     }
 
-    // 下半分
-    ctx.strokeStyle = 'rgba(255, 0, 180, 0.12)';
+    ctx.strokeStyle = 'rgba(255, 0, 180, 0.1)';
     for (let x = -this.bgOffset; x < api.W; x += 40) {
       ctx.beginPath();
       ctx.moveTo(x, 180);
-      ctx.lineTo(x, api.H);
+      ctx.lineTo(x, api.H - this.wallHeight);
       ctx.stroke();
     }
-    for (let y = 180; y < api.H; y += 30) {
+    for (let y = 180; y <= api.H - this.wallHeight; y += 30) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(api.W, y);
       ctx.stroke();
     }
 
-    // 天井と床のデンジャーバー
-    ctx.fillStyle = this.gravity === -1 ? '#00e5ff' : '#222';
-    ctx.fillRect(0, 0, api.W, 10);
-    ctx.fillStyle = this.gravity === 1 ? '#ff0077' : '#222';
-    ctx.fillRect(0, api.H - 10, api.W, 10);
-
-    // 中央の境界パルスライン (Y=180)
+    // 中央境界パルスライン (Y=180)
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.shadowColor = this.gravity === -1 ? '#00ffff' : '#ff00bb';
@@ -844,13 +901,52 @@ const Game = {
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // 重力方向インジケーター（矢印サイン）
-    ctx.fillStyle = this.gravity === -1 ? 'rgba(0,255,255,0.25)' : 'rgba(255,0,180,0.25)';
-    ctx.font = '20px sans-serif';
+    // 重力方向サイン
+    ctx.fillStyle = this.gravity === -1 ? 'rgba(0,255,255,0.22)' : 'rgba(255,0,180,0.22)';
+    ctx.font = 'bold 18px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const arrow = this.gravity === -1 ? '▲ GRAVITY UP ▲' : '▼ GRAVITY DOWN ▼';
-    ctx.fillText(arrow, api.W / 2, this.gravity === -1 ? 90 : 270);
+    const arrow = this.gravity === -1 ? '▲ GRAVITY: UP ▲' : '▼ GRAVITY: DOWN ▼';
+    ctx.fillText(arrow, api.W / 2, this.gravity === -1 ? 100 : 260);
+
+    // 上下デンジャー壁（触れると電撃ダメージを受ける危険エリア）
+    // 天井壁
+    ctx.fillStyle = '#110519';
+    ctx.fillRect(0, 0, api.W, this.wallHeight);
+    ctx.strokeStyle = '#ff0055';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, this.wallHeight);
+    ctx.lineTo(api.W, this.wallHeight);
+    ctx.stroke();
+
+    // 天井の危険トゲハザード描画
+    ctx.fillStyle = '#ff0055';
+    for (let x = 0; x < api.W; x += 16) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 8, this.wallHeight - 2);
+      ctx.lineTo(x + 16, 0);
+      ctx.fill();
+    }
+
+    // 床壁
+    ctx.fillStyle = '#110519';
+    ctx.fillRect(0, api.H - this.wallHeight, api.W, this.wallHeight);
+    ctx.strokeStyle = '#ff0055';
+    ctx.beginPath();
+    ctx.moveTo(0, api.H - this.wallHeight);
+    ctx.lineTo(api.W, api.H - this.wallHeight);
+    ctx.stroke();
+
+    // 床の危険トゲハザード描画
+    for (let x = 0; x < api.W; x += 16) {
+      ctx.beginPath();
+      ctx.moveTo(x, api.H);
+      ctx.lineTo(x + 8, api.H - this.wallHeight + 2);
+      ctx.lineTo(x + 16, api.H);
+      ctx.fill();
+    }
 
     // シールドアイテム描画
     for (const it of this.items) {
@@ -864,7 +960,7 @@ const Game = {
       ctx.arc(0, 0, 12, 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = '#fff';
-      ctx.font = '12px sans-serif';
+      ctx.font = 'bold 12px sans-serif';
       ctx.fillText('S', 0, 1);
       ctx.restore();
     }
@@ -876,7 +972,7 @@ const Game = {
       ctx.rotate(g.t);
       ctx.shadowColor = '#ffff00';
       ctx.shadowBlur = 10;
-      ctx.fillStyle = '#ffff44';
+      ctx.fillStyle = '#ffff33';
       ctx.beginPath();
       ctx.moveTo(0, -9);
       ctx.lineTo(7, 0);
@@ -898,7 +994,6 @@ const Game = {
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
 
-      // 尖った十字星形
       const hw = s.w / 2;
       ctx.beginPath();
       for (let i = 0; i < 4; i++) {
@@ -914,7 +1009,7 @@ const Game = {
       if (s.hp === 2) {
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 10px sans-serif';
-        ctx.fillText('2', 0, 0);
+        ctx.fillText('2', 0, 1);
       }
       ctx.restore();
     }
@@ -922,7 +1017,7 @@ const Game = {
     // 自機の軌跡
     for (let i = 0; i < p.tail.length; i++) {
       const t = p.tail[i];
-      const alpha = (i + 1) / p.tail.length * 0.4;
+      const alpha = ((i + 1) / p.tail.length) * 0.4;
       ctx.fillStyle = p.y < 180 ? `rgba(0,255,255,${alpha})` : `rgba(255,0,200,${alpha})`;
       ctx.beginPath();
       ctx.arc(t.x, t.y, p.r * 0.6, 0, Math.PI * 2);
@@ -936,7 +1031,6 @@ const Game = {
       ctx.shadowColor = p.y < 180 ? '#00ffff' : '#ff00ff';
       ctx.shadowBlur = 15;
 
-      // 菱形
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = p.y < 180 ? '#00ffff' : '#ff00ff';
       ctx.lineWidth = 3;
@@ -949,7 +1043,6 @@ const Game = {
       ctx.fill();
       ctx.stroke();
 
-      // シールド
       if (p.shield) {
         ctx.strokeStyle = '#00ffff';
         ctx.lineWidth = 2;
@@ -981,17 +1074,18 @@ const Game = {
 
     // 重力反転フラッシュ
     if (this.flash > 0) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${this.flash * 0.7})`;
+      ctx.fillStyle = `rgba(255, 255, 255, ${this.flash * 0.6})`;
       ctx.fillRect(0, 0, api.W, api.H);
     }
 
-    // HUD描画
+    // HUD描画（上部壁内）
     ctx.textAlign = 'left';
-    ctx.font = 'bold 16px sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 15px sans-serif';
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';
     ctx.shadowBlur = 5;
-    ctx.fillText(`SCORE: ${api.score}`, 16, 26);
+    ctx.fillText(`SCORE: ${api.score}`, 14, 14);
 
     ctx.textAlign = 'right';
     const min = Math.floor(this.timeLeft / 60);
@@ -999,14 +1093,14 @@ const Game = {
     const timeStr = `${min}:${sec < 10 ? '0' : ''}${sec}`;
     ctx.fillStyle = this.timeLeft <= 30 ? '#ff3333' : '#ff00ff';
     ctx.shadowColor = ctx.fillStyle;
-    ctx.fillText(`TIME: ${timeStr}`, api.W - 16, 26);
+    ctx.fillText(`TIME: ${timeStr}`, api.W - 14, 14);
 
     if (this.combo > 1) {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffea00';
       ctx.shadowColor = '#ffea00';
-      ctx.font = 'bold 18px sans-serif';
-      ctx.fillText(`${this.combo} COMBO!`, api.W / 2, 26);
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(`${this.combo} COMBO!`, api.W / 2, 14);
     }
 
     ctx.restore();
