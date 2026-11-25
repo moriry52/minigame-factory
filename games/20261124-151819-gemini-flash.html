@@ -489,6 +489,7 @@ const Game = {
     this.asteroids = [];
     this.mines = [];
     this.photons = [];
+    this.repairs = [];
     this.particles = [];
     this.stars = [];
     for (let i = 0; i < 60; i++) {
@@ -502,6 +503,7 @@ const Game = {
     this.spawnTimerAsteroid = 2.0;
     this.spawnTimerMine = 5.0;
     this.spawnTimerPhoton = 1.0;
+    this.spawnTimerRepair = 8.0;
     this.boostSoundTimer = 0;
     this.warningTimer = 0;
     this.cleared = false;
@@ -624,6 +626,18 @@ const Game = {
       this.spawnTimerPhoton = this.api.util.rand(4.0, 7.0);
     }
 
+    // リペアアイテム出現
+    this.spawnTimerRepair -= dt;
+    if (this.spawnTimerRepair <= 0 && this.repairs.length < 1) {
+      this.repairs.push({
+        x: this.api.util.rand(50, this.api.W - 50),
+        y: this.api.util.rand(50, this.api.H - 50),
+        radius: 8,
+        pulse: 0,
+      });
+      this.spawnTimerRepair = this.api.util.rand(14.0, 20.0);
+    }
+
     // アステロイド更新
     for (let i = this.asteroids.length - 1; i >= 0; i--) {
       const a = this.asteroids[i];
@@ -704,6 +718,33 @@ const Game = {
             maxLife: 0.4,
             color: '#76ff03',
             radius: 3,
+          });
+        }
+      }
+    }
+
+    // リペア取得判定
+    for (let i = this.repairs.length - 1; i >= 0; i--) {
+      const rep = this.repairs[i];
+      rep.pulse += dt * 3.5;
+      if (this.api.util.dist(p.x, p.y, rep.x, rep.y) < p.radius + rep.radius + 6) {
+        this.repairs.splice(i, 1);
+        if (p.hp < p.maxHp) {
+          p.hp = Math.min(p.maxHp, p.hp + 1);
+        }
+        this.api.addScore(150);
+        this.api.sound.play('powerup');
+        for (let k = 0; k < 16; k++) {
+          const a = (k / 16) * Math.PI * 2;
+          this.particles.push({
+            x: rep.x,
+            y: rep.y,
+            vx: Math.cos(a) * 75,
+            vy: Math.sin(a) * 75,
+            life: 0.45,
+            maxLife: 0.45,
+            color: '#00e5ff',
+            radius: 3.5,
           });
         }
       }
@@ -901,6 +942,30 @@ const Game = {
       ctx.beginPath();
       ctx.arc(0, 0, ph.radius * 0.5, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    }
+
+    // リペアアイテム描画
+    for (const rep of this.repairs) {
+      ctx.save();
+      ctx.translate(rep.x, rep.y);
+      const glow = Math.sin(rep.pulse) * 4;
+      ctx.shadowColor = '#00e5ff';
+      ctx.shadowBlur = 14 + glow;
+
+      // 外周カプセル
+      ctx.fillStyle = 'rgba(0, 229, 255, 0.25)';
+      ctx.strokeStyle = '#00e5ff';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, rep.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 十字マーク
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-2, -5, 4, 10);
+      ctx.fillRect(-5, -2, 10, 4);
       ctx.restore();
     }
 
