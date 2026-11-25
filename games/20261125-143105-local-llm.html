@@ -495,6 +495,12 @@ const Game = {
     this.laserTimer = 3.0;
     this.bossHitFlash = 0;
 
+    this.lanes = [-1.56, -0.78, 0, 0.78, 1.56];
+    this.lane = 2;
+    this.targetX = 0;
+    this.targetZ = 0.8;
+    this.stepSize = 0.78;
+
     scene.clear();
     scene.background = new THREE.Color(0x252b32);
     scene.fog = new THREE.Fog(0x252b32, 10, 34);
@@ -774,6 +780,13 @@ const Game = {
     this.handleMovement(input);
     this.handleShooting(input);
 
+    const p = this.player.position;
+    const moveK = 1 - Math.exp(-16 * dt);
+    p.x += (this.targetX - p.x) * moveK;
+    p.z += (this.targetZ - p.z) * moveK;
+    if (Math.abs(p.x - this.targetX) < 0.002) p.x = this.targetX;
+    if (Math.abs(p.z - this.targetZ) < 0.002) p.z = this.targetZ;
+
     if (!this.bossActive && this.elapsed >= 45) {
       this.spawnBoss();
     }
@@ -842,15 +855,44 @@ const Game = {
 
   step(dx, dz) {
     if (this.ended) return;
-    const p = this.player.position;
-    const stepSize = 0.78;
-    let nx = p.x + dx * stepSize;
-    let nz = p.z + dz * stepSize;
-    nx = Math.max(-2.1, Math.min(2.1, nx));
-    nz = Math.max(-0.55, Math.min(1.75, nz));
-    if (Math.abs(nx - p.x) > 0.001 || Math.abs(nz - p.z) > 0.001) {
-      p.x = nx;
-      p.z = nz;
+
+    let changed = false;
+
+    if (dx < 0) {
+      const nl = Math.max(0, this.lane - 1);
+      if (nl !== this.lane) {
+        this.lane = nl;
+        this.targetX = this.lanes[nl];
+        changed = true;
+      }
+    } else if (dx > 0) {
+      const nl = Math.min(4, this.lane + 1);
+      if (nl !== this.lane) {
+        this.lane = nl;
+        this.targetX = this.lanes[nl];
+        changed = true;
+      }
+    }
+
+    if (dz < 0) {
+      const oldZ = this.targetZ;
+      let nz = oldZ - this.stepSize;
+      nz = Math.max(-0.55, Math.min(1.75, nz));
+      if (Math.abs(nz - oldZ) > 0.001) {
+        this.targetZ = nz;
+        changed = true;
+      }
+    } else if (dz > 0) {
+      const oldZ = this.targetZ;
+      let nz = oldZ + this.stepSize;
+      nz = Math.max(-0.55, Math.min(1.75, nz));
+      if (Math.abs(nz - oldZ) > 0.001) {
+        this.targetZ = nz;
+        changed = true;
+      }
+    }
+
+    if (changed) {
       this.stepInvincible = 0.16;
       this.stepAnim = 0.15;
       this.sound('step');
