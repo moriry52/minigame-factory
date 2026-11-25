@@ -73,6 +73,12 @@ dialog::backdrop{background:rgba(3,4,10,.75)}
 .stars .fav.on{color:#ff7d9a}
 .stars .clr{font-size:12px;color:#8f9bc4;margin-left:6px}
 #favBtn{flex:none}
+.thumb .fv{position:absolute;right:6px;bottom:6px;width:38px;height:38px;border-radius:50%;border:0;cursor:pointer;
+  background:rgba(8,10,20,.72);color:#8f9bc4;font-size:19px;line-height:38px;text-align:center;padding:0}
+.thumb .fv.on{color:#ff7d9a}
+.btn.fvb{flex:none;background:#2c3554;color:#c6cff0}
+.btn.fvb.on{background:#4a2433;color:#ffb3c6}
+.note{font-size:11px;color:#6f7aa3;margin-top:8px}
 </style>
 </head>
 <body>
@@ -86,7 +92,7 @@ dialog::backdrop{background:rgba(3,4,10,.75)}
     <select id="sort" aria-label="並び順">
       <option value="new">新着順</option><option value="stars" id="optStars">★評価順</option><option value="fun">AI評価順</option><option value="random">ランダム</option>
     </select>
-    <button class="chip" id="favBtn" type="button" hidden>♥ お気に入り</button>
+    <button class="chip" id="favBtn" type="button">♥ お気に入り</button>
   </div>
   <div class="row" id="f1"></div>
   <div class="row" id="f2"></div>
@@ -109,6 +115,20 @@ const MULTI = new Set(GAMES.map((g) => g.label)).size > 1;
 try { Object.assign(state, JSON.parse(localStorage.getItem("mgf:index") || "{}"), { seed: Math.random() }); } catch (_) {}
 const save = () => { try { localStorage.setItem("mgf:index", JSON.stringify({ v: state.v, c: state.c, m: state.m, sort: state.sort, fav: state.fav })); } catch (_) {} };
 const my = (g) => (RATINGS && RATINGS[g.id]) || {};
+// 見ている人ごとのお気に入り（このブラウザの中だけに保存。サーバーには送らない）。
+// 管理画面から開いたとき（EDIT）だけは、管理画面のお気に入り（ratings.json）を使う
+const FAV_KEY = "mgf:favs:" + location.pathname.replace(/[^/]*$/, "");   // 同じ github.io の別リポジトリと混ざらないように
+let FAVS = new Set();
+try { FAVS = new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]")); } catch (_) {}
+const saveFavs = () => { try { localStorage.setItem(FAV_KEY, JSON.stringify([...FAVS])); return true; } catch (_) { return false; } };
+const isFav = (g) => EDIT ? !!my(g).fav : FAVS.has(g.id);
+function toggleFav(id) {
+  const g = GAMES.find((x) => x.id === id); if (!g) return;
+  if (EDIT) return rate(id, { fav: !my(g).fav });
+  if (FAVS.has(id)) FAVS.delete(id); else FAVS.add(id);
+  if (!saveFavs()) alert("このブラウザでは保存できないため、ページを閉じるとお気に入りは消えます（プライベートモードなど）。");
+  render(); if ($("dlg").open) open(id);
+}
 const NEWEST = GAMES.map((g) => g.created).sort().slice(-3);
 
 const val = (g, axis) => axis === "モデル" ? g.label : g.tags[axis];
@@ -123,13 +143,15 @@ function render() {
   chips($("f1"), "視点", "v"); chips($("f2"), "核", "c");
   if (MULTI) chips($("f3"), "モデル", "m"); else $("f3").style.display = "none";
   const hasR = !!RATINGS;
-  $("optStars").hidden = !hasR; $("favBtn").hidden = !hasR;
-  if (!hasR) { if (state.sort === "stars") state.sort = "new"; state.fav = false; }
+  $("optStars").hidden = !hasR;
+  if (!hasR && state.sort === "stars") state.sort = "new";
+  const nFav = GAMES.filter(isFav).length;
+  $("favBtn").textContent = `♥ お気に入り${nFav ? " " + nFav : ""}`;
   $("favBtn").classList.toggle("on", state.fav);
   $("sort").value = state.sort;
   const q = state.q.trim().toLowerCase();
   let list = GAMES.filter((g) => (!state.v || g.tags["視点"] === state.v) && (!state.c || g.tags["核"] === state.c) && (!state.m || g.label === state.m)
-    && (!state.fav || my(g).fav)
+    && (!state.fav || isFav(g))
     && (!q || (g.title + g.summary + Object.values(g.tags).join(" ")).toLowerCase().includes(q)));
   if (state.sort === "new") list.sort((a, b) => b.created.localeCompare(a.created));
   else if (state.sort === "stars") list.sort((a, b) => (my(b).stars || 0) - (my(a).stars || 0) || (b.review?.fun_score || 0) - (a.review?.fun_score || 0));
@@ -138,25 +160,26 @@ function render() {
   $("count").textContent = `全 ${GAMES.length} 本` + (list.length !== GAMES.length ? ` ／ 表示中 ${list.length} 本` : "");
   $("list").innerHTML = list.length ? list.map((g) => `
     <article class="card" data-id="${esc(g.id)}" tabindex="0">
-      <div class="thumb" style="background-image:url('games/${esc(g.id)}.png')">${NEWEST.includes(g.created) ? '<span class="new">NEW</span>' : ""}${myBadge(g)}</div>
+      <div class="thumb" style="background-image:url('games/${esc(g.id)}.png')">${NEWEST.includes(g.created) ? '<span class="new">NEW</span>' : ""}${myBadge(g)}<button type="button" class="fv ${isFav(g) ? "on" : ""}" data-fv="${esc(g.id)}" aria-pressed="${isFav(g)}" aria-label="お気に入り" title="お気に入り">${isFav(g) ? "♥" : "♡"}</button></div>
       <div class="body">
         <div class="title">${esc(g.title)}</div>
         <div class="summary">${esc(g.summary)}</div>
         <div class="tags"><span class="tag v">${esc(g.tags["視点"])}</span><span class="tag c">${esc(g.tags["核"])}</span>
           ${g.tags["ひねり"] !== "なし" ? `<span class="tag">${esc(g.tags["ひねり"])}</span>` : ""}<span class="tag">${esc(g.tags["操作"])}</span>${MULTI ? `<span class="tag m">${esc(g.label)}</span>` : ""}</div>
       </div>
-    </article>`).join("") : `<div class="empty">${GAMES.length ? "条件に合うゲームがありません" : "まだゲームがありません。run.py を実行するとここに並びます。"}</div>`;
+    </article>`).join("") : `<div class="empty">${!GAMES.length ? "まだゲームがありません。run.py を実行するとここに並びます。"
+      : state.fav && !nFav ? "まだお気に入りがありません。気に入ったゲームの ♡ を押すと、ここに集まります。" : "条件に合うゲームがありません"}</div>`;
 }
 function myBadge(g) {
   const r = my(g);
-  if (!r.stars && !r.fav) return "";
-  return `<span class="my">${r.stars ? `<span>★${r.stars}</span>` : ""}${r.fav ? '<span class="h">♥</span>' : ""}</span>`;
+  if (!r.stars) return "";
+  return `<span class="my"><span>★${r.stars}</span></span>`;
 }
 function rateHtml(g) {
   const r = my(g);
   if (!EDIT) {
-    if (!r.stars && !r.fav) return "";
-    return `<div class="meta">あなたの評価 ${r.stars ? "★".repeat(r.stars) + "☆".repeat(5 - r.stars) : "なし"}${r.fav ? " ・ ♥ お気に入り" : ""}</div>`;
+    if (!r.stars) return "";
+    return `<div class="meta">作者の評価 ${"★".repeat(r.stars) + "☆".repeat(5 - r.stars)}</div>`;
   }
   return `<div class="rate"><b>あなたの評価（ここで付けると管理画面に保存されます。公開ページには出ません）</b><div class="stars">
     ${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}" class="${(r.stars || 0) >= n ? "on" : ""}" aria-label="★${n}">★</button>`).join("")}
@@ -187,16 +210,23 @@ function open(id) {
       <div class="meta">プレイ時間 ${esc(g.playTime || "")} ・ 作成 ${esc(g.created.replace("T", " ").slice(0, 16))} ・ モデル ${esc(g.label)}${g.fixes ? `（修正${g.fixes}回）` : ""}${stars ? ` ・ AI評価 ${stars}` : ""}</div>
       ${g.review?.comment ? `<div class="meta">AI講評：${esc(g.review.comment)}</div>` : ""}
       ${rateHtml(g)}
-      <div class="actions"><a class="btn" href="games/${esc(g.id)}.html">▶ 遊ぶ</a><button class="btn sub" id="closeBtn">閉じる</button></div>
+      <div class="actions"><a class="btn" href="games/${esc(g.id)}.html">▶ 遊ぶ</a>${EDIT ? "" : `<button class="btn fvb ${isFav(g) ? "on" : ""}" type="button" data-fv="${esc(g.id)}">${isFav(g) ? "♥ お気に入り" : "♡ お気に入り"}</button>`}<button class="btn sub" id="closeBtn">閉じる</button></div>
+      ${EDIT ? "" : `<div class="note">お気に入りは、このブラウザの中だけに保存されます（ほかの人には見えません。別の端末やブラウザとは共有されません）。</div>`}
     </div>`;
   $("closeBtn").onclick = () => $("dlg").close();
   $("sheet").querySelectorAll("[data-star]").forEach((b) => b.onclick = () => rate(id, { stars: +b.dataset.star }));
   const fb = $("sheet").querySelector("[data-fav]"); if (fb) fb.onclick = () => rate(id, { fav: !my(g).fav });
+  const lb = $("sheet").querySelector("[data-fv]"); if (lb) lb.onclick = () => toggleFav(id);
   const cb = $("sheet").querySelector("[data-clear]"); if (cb) cb.onclick = () => rate(id, { stars: 0 });
   if (!$("dlg").open) $("dlg").showModal();
 }
-$("list").addEventListener("click", (e) => { const c = e.target.closest(".card"); if (c) open(c.dataset.id); });
-$("list").addEventListener("keydown", (e) => { const c = e.target.closest(".card"); if (c && e.key === "Enter") open(c.dataset.id); });
+$("list").addEventListener("click", (e) => {
+  const f = e.target.closest("[data-fv]"); if (f) { e.stopPropagation(); toggleFav(f.dataset.fv); return; }
+  const c = e.target.closest(".card"); if (c) open(c.dataset.id);
+});
+$("list").addEventListener("keydown", (e) => { if (e.target.closest("[data-fv]")) return; const c = e.target.closest(".card"); if (c && e.key === "Enter") open(c.dataset.id); });
+// ほかのタブで変えたお気に入りも反映する
+window.addEventListener("storage", (e) => { if (e.key === FAV_KEY && !EDIT) { try { FAVS = new Set(JSON.parse(e.newValue || "[]")); } catch (_) {} render(); } });
 $("dlg").addEventListener("click", (e) => { if (e.target === $("dlg")) $("dlg").close(); });
 $("q").addEventListener("input", (e) => { state.q = e.target.value; render(); });
 $("sort").addEventListener("change", (e) => { state.sort = e.target.value; state.seed = Math.random(); save(); render(); });
