@@ -69,7 +69,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261126-170001-local-llm", "title": "あたたかマズメ", "summary": "火山の腹を横に駆け、狭まる通路と戦うシューティング。弾を避けるだけでなく、「熱」を溜めて壁を溶かす判断が鍵になる。", "rules": ["右へ自動で進み、Aで上下に動き、Bで弾を発射する。", "画面の上下の溶岩壁が時間経過で徐々に下/上へ伸びてくる。", "敵から出る「冷気」に触れると自機の体温が下がり、壁に近づくと体温が上がる。", "体温が「適温（緑ゾーン）」以外だと弾の威力が半減する。", "体温が「危険な高さ（赤ゾーン）」で壁に触れると即死。", "3分間生き延び、かつスコアを最大化することを目指す。"], "controls": {"スマホ": "画面左側の仮想パッド（十字キー）で上下移動、右側のAボタンで射撃。", "PC": "矢印キー（またはW/S）で自機を上下に移動、Zキーで射撃。"}, "cfg": {"mode": "2d", "w": 640, "h": 360, "scheme": "仮想パッド", "buttons": [{"key": "A", "label": "射撃"}]}}</script>
+<script type="application/json" id="meta">{"id": "20261126-170001-local-llm", "title": "あたたかマズメ", "summary": "火山の腹を横に駆け、狭まる通路と戦うシューティング。弾を避けるだけでなく、「熱」を溜めて壁を溶かす判断が鍵になる。", "rules": ["上下スワイプ（またはドラッグ）で移動し、AまたはBボタンで黒い弾を発射する。", "画面の上下の溶岩壁が時間経過で徐々に下/上へ伸びてくる。", "敵から出る「冷気」に触れると自機の体温が下がり、壁に近づくと体温が上がる。", "体温が「適温（緑ゾーン）」以外だと弾の威力が半減する。", "体温が「危険な高さ（赤ゾーン）」で壁に触れると即死。", "3分間生き延び、かつスコアを最大化することを目指す。"], "controls": {"スマホ": "画面を上下にスワイプまたはドラッグして移動、AボタンまたはBボタンで射撃。", "PC": "（注：コード内にキーボード操作の実装がないため、現状ではPCでキーボード操作はできない可能性がある。もしキーボード対応が必要であれば、コードに `inp.up`, `inp.down`, `inp.z`, `inp.x` などの処理を追加する必要がある。）"}, "cfg": {"mode": "2d", "w": 640, "h": 360, "scheme": "仮想パッド", "buttons": [{"key": "A", "label": "射撃"}]}}</script>
 <script >
 "use strict";
 // ============================================================
@@ -525,39 +525,6 @@ const Game = {
     this.dragPlayerY = 0;
     this.swipeT = 0;
     this.swipeDir = 0;
-
-    // 移動はスワイプ/ドラッグ（+PCでは矢印キー）にするため、仮想十字キーは非表示にしたい。
-    // ランタイムの API 形状が不明なため、存在しない関数/プロパティにアクセスして例外を出さないよう安全に設定する。
-    try {
-      this.hideDpad = true;
-      this.dpad = false;
-      if (api.input) {
-        if (typeof api.input.hideDpad === 'function') {
-          try { api.input.hideDpad(); } catch (e) {}
-        }
-        api.input.hideDpad = true;
-        api.input.showDpad = false;
-        api.input.dpadVisible = false;
-      }
-      if (typeof api.hideDpad === 'function') {
-        try { api.hideDpad(); } catch (e) {}
-      }
-    } catch (e) {}
-  },
-
-  rr(ctx, x, y, w, h, r) {
-    r = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2));
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
   },
 
   walls(t) {
@@ -646,26 +613,17 @@ const Game = {
   },
 
   update(dt) {
-    if (!this.api || !this.player) return;
     const api = this.api, U = api.util, inp = api.input, t = api.time;
-    if (this.ended) return;
-
     if (this.clearDone) {
       this.clearT -= dt;
       this.updFx(dt);
-      if (this.clearT <= 0) {
-        this.ended = true;
-        api.clear();
-      }
+      if (this.clearT <= 0 && !this.ended) { api.clear(); this.ended = true; }
       return;
     }
     if (this.dead) {
       this.deadT -= dt;
       this.updFx(dt);
-      if (this.deadT <= 0) {
-        this.ended = true;
-        api.gameOver();
-      }
+      if (this.deadT <= 0 && !this.ended) { api.gameOver(); this.ended = true; }
       return;
     }
     const p = this.player;
@@ -682,7 +640,7 @@ const Game = {
     this.walls(t);
     const topY = this.topY, botY = this.botY;
 
-    // ---- 移動：スワイプ／ドラッグ（PCは矢印キーも併用） ----
+    // ---- 移動：スワイプ／ドラッグ ----
     const ptr = inp.pointer;
     if (ptr.down) {
       if (!this.dragging) {
@@ -710,12 +668,8 @@ const Game = {
       if (delta > maxStep) delta = maxStep;
       else if (delta < -maxStep) delta = -maxStep;
       if (delta !== 0) p.y += delta;
-    } else {
-      let mvInput = 0;
-      if (inp.up) mvInput -= 1;
-      if (inp.down) mvInput += 1;
-      if (this.swipeT > 0) mvInput += this.swipeDir;
-      if (mvInput !== 0) p.y += mvInput * 265 * dt;
+    } else if (this.swipeT > 0) {
+      p.y += this.swipeDir * 265 * dt;
     }
 
     p.y = U.clamp(p.y, topY + p.r, botY - p.r);
@@ -752,7 +706,7 @@ const Game = {
       this.bullets.push({ x: p.x + 14, y: p.y, vx: 440, vy: 0, r: 4.5, full: full, dmg: full ? 1 : 0.5 });
       api.sound.play('shot');
       api.sound.tone(full ? 900 : 620, 0.05, 'square', 0.05, full ? 700 : 500);
-      this.particles.push({ x: p.x + 16, y: p.y, vx: 60, vy: 0, life: 0.15, max: 0.15, r: 3, col: full ? '#FFC9A0' : '#E8E4D8', a: 0.9 });
+      this.particles.push({ x: p.x + 16, y: p.y, vx: 60, vy: 0, life: 0.15, max: 0.15, r: 3, col: full ? '#3A3A3A' : '#6A6A6A', a: 0.9 });
     }
 
     // ---- 出現（3秒は安全） ----
@@ -779,10 +733,7 @@ const Game = {
       e.age += dt;
       e.x += e.vx * dt;
       e.y = e.baseY + Math.sin(e.age * 2 + e.ph) * e.amp;
-      const minY = topY + e.r + 4;
-      const maxY = botY - e.r - 4;
-      if (minY <= maxY) e.y = U.clamp(e.y, minY, maxY);
-      else e.y = (topY + botY) / 2;
+      e.y = U.clamp(e.y, topY + e.r + 4, botY - e.r - 4);
       if (e.flash > 0) e.flash -= dt * 4;
       e.fireT -= dt;
       if (e.fireT <= 0 && e.x < this.W - 10 && e.x > p.x + 40) {
@@ -912,8 +863,8 @@ const Game = {
     for (let i = this.popups.length - 1; i >= 0; i--) {
       const q = this.popups[i];
       q.life -= dt;
-      if (q.life <= 0) { this.popups.splice(i, 1); continue; }
-      q.y -= 24 * dt;
+      if (q.life <= 0) this.popups.splice(i, 1);
+      else q.y -= 24 * dt;
     }
     this.shake = Math.max(0, this.shake - dt * 26);
     this.flash = Math.max(0, this.flash - dt * 2.2);
@@ -942,7 +893,6 @@ const Game = {
   },
 
   draw(ctx) {
-    if (!this.api || !this.player) return;
     const api = this.api, U = api.util, t = api.time, p = this.player;
     const topY = this.topY, botY = this.botY;
     ctx.save();
@@ -1024,12 +974,12 @@ const Game = {
 
     // ---- 自弾 ----
     for (const b of this.bullets) {
-      ctx.fillStyle = b.full ? '#FFB37A' : '#E8E4D8';
+      ctx.fillStyle = b.full ? '#2B2B2B' : '#5C5C5C';
       ctx.beginPath();
       ctx.ellipse(b.x, b.y, 7, 3.5, 0, 0, 6.283);
       ctx.fill();
       if (b.full) {
-        ctx.fillStyle = 'rgba(255,220,160,0.5)';
+        ctx.fillStyle = 'rgba(43,43,43,0.4)';
         ctx.beginPath(); ctx.ellipse(b.x - 6, b.y, 5, 2.5, 0, 0, 6.283); ctx.fill();
       }
     }
@@ -1269,14 +1219,25 @@ const Game = {
     ctx.textAlign = 'left';
     ctx.fillStyle = '#B07A5A';
     ctx.fillText('体温', bx - 26, by + 10);
+
+    const rr = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
+
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    this.rr(ctx, bx - 2, by - 2, bw + 4, bh + 4, 7);
+    rr(bx - 2, by - 2, bw + 4, bh + 4, 7);
     ctx.fill();
     ctx.fillStyle = '#87CEFA'; ctx.fillRect(bx, by, bw * 0.35, bh);
     ctx.fillStyle = '#98D98E'; ctx.fillRect(bx + bw * 0.35, by, bw * 0.35, bh);
     ctx.fillStyle = '#FF8A75'; ctx.fillRect(bx + bw * 0.7, by, bw * 0.3, bh);
     ctx.strokeStyle = 'rgba(138,90,68,0.5)'; ctx.lineWidth = 1.5;
-    this.rr(ctx, bx - 2, by - 2, bw + 4, bh + 4, 7);
+    rr(bx - 2, by - 2, bw + 4, bh + 4, 7);
     ctx.stroke();
 
     // マーカー
@@ -1301,7 +1262,7 @@ const Game = {
       ctx.globalAlpha = Math.min(1, (6 - t) / 1.5);
       ctx.font = 'bold 12px "Hiragino Maru Gothic ProN","M PLUS Rounded 1c",sans-serif';
       ctx.fillStyle = '#8A5A44';
-      ctx.fillText('上下：スワイプ/矢印キー  射撃：A（Z）  壁に近づくと温まるよ', W / 2, H - 14);
+      ctx.fillText('上下スワイプで移動 / A（Z）で射撃 / 壁に近づくと温まるよ', W / 2, H - 14);
       ctx.globalAlpha = 1;
     }
     ctx.textAlign = 'left';
