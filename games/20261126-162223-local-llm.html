@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ドットダッシュ：崖</title>
+<link rel="icon" type="image/png" href="../favicon-96x96.png?v=6065284c" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="../favicon.svg?v=6065284c" />
+<link rel="shortcut icon" href="../favicon.ico?v=6065284c" />
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png?v=6065284c" />
+<link rel="manifest" href="../site.webmanifest?v=6065284c" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:none}
+#screen{display:block;background:#000;touch-action:none;image-rendering:auto}
+#hud{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:14px;font-weight:700;
+  text-shadow:0 1px 3px #000;pointer-events:none}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,6,12,.72);backdrop-filter:blur(2px);touch-action:none}
+#overlay.hidden{display:none}
+.panel{width:min(92%,420px);max-height:92%;overflow:auto;background:#151a2b;border:1px solid #2c3554;
+  border-radius:16px;padding:20px 18px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.panel h1{font-size:24px;margin-bottom:8px;letter-spacing:.02em}
+.panel h2{font-size:20px;margin-bottom:8px}
+.panel p{font-size:14px;line-height:1.6;color:#c9d0ea}
+.panel .box{margin:12px 0;padding:10px 12px;background:#0e1220;border-radius:10px;text-align:left}
+.panel .box b{display:block;font-size:12px;color:#8fa0d8;margin-bottom:4px}
+.panel ul{padding-left:1.2em;font-size:13px;line-height:1.6;color:#c9d0ea}
+.panel .score{font-size:40px;font-weight:800;margin:6px 0}
+.panel .best{font-size:13px;color:#8fa0d8}
+.btn{display:inline-block;margin:10px 6px 0;padding:12px 22px;border-radius:999px;border:0;
+  background:#5b7cff;color:#fff;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn.sub{background:#2c3554}
+.blink{animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.35}}
+#pad{display:none;height:190px;flex:none;position:relative;touch-action:none}
+#pad.show{display:block}
+.pbtn{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:rgba(120,140,220,.18);border:2px solid rgba(160,180,255,.35);color:#dfe6ff;
+  font-weight:800;font-size:18px;touch-action:none}
+.pbtn.on{background:rgba(120,150,255,.55)}
+.pbtn.dir{border-radius:14px;width:58px;height:58px;font-size:20px}
+.pbtn.act{width:78px;height:78px;font-size:15px;text-align:center;line-height:1.1;padding:4px}
+#topbar{flex:none;height:38px;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 8px}
+#topbar a,#topbar button{background:rgba(20,24,40,.7);border:1px solid #2c3554;color:#cfd7f5;font-size:13px;
+  padding:6px 10px;border-radius:999px;text-decoration:none;cursor:pointer}
+</style>
+
+</head>
+<body>
+<div id="app">
+<div id="topbar">
+    <button id="muteBtn" type="button" aria-label="音のオン・オフ">🔊</button>
+    <button id="pauseBtn" type="button" aria-label="一時停止">⏸</button>
+    <a href="../index.html">一覧</a>
+  </div>
+  <div id="stage">
+    <canvas id="screen"></canvas>
+    <div id="hud"></div>
+    <div id="overlay"></div>
+  </div>
+  <div id="pad"></div>
+</div>
+<script type="application/json" id="meta">{"id": "20261126-162223-local-llm", "title": "ドットダッシュ：崖", "summary": "横スクロールで崖沿いを全力疾走する、ワンボタン操作のアクション。跳ぶタイミングと着地地点を瞬時に見切り、3分でゴールまで辿り着く。", "rules": ["自機は常に右へ自動で走り続ける。", "タップ（Aボタン）でジャンプ、長押しで高く跳ぶ。", "障害物や敵に触れるとミス（ミス3回でゲームオーバー）。", "制限時間3分以内にゴール到達でステージクリア。"], "controls": {"スマホ": "画面をタップまたは長押しでジャンプ。", "PC": "スペースキーまたはZキーでジャンプ。"}, "cfg": {"mode": "2d", "w": 640, "h": 360, "scheme": "ワンボタン", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script >
+"use strict";
+// ============================================================
+// ミニゲーム共通ランタイム（入力・画面サイズ・音・タイトル/結果画面）
+// ゲーム側は `const Game = { init(api), update(dt), draw(ctx) }` を定義するだけ。
+// ============================================================
+const META = JSON.parse(document.getElementById("meta").textContent);
+const CFG = META.cfg;                       // { mode:'2d'|'3d', w, h, scheme, buttons:[{key,label}] }
+const IS_TOUCH = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || ("ontouchstart" in window);
+const __G = (window.__GAME__ = { state: "boot", frame: 0, score: 0, errors: [], startedAt: 0, endedAt: 0, plays: 0 });
+window.addEventListener("error", (e) => __G.errors.push(String(e.message || e)));
+window.addEventListener("unhandledrejection", (e) => __G.errors.push(String(e.reason)));
+
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), canvas = $("screen"), overlay = $("overlay"), hudEl = $("hud"), padEl = $("pad");
+
+// ---------------- ユーティリティ ----------------
+const U = {
+  rand: (a = 0, b = 1) => a + Math.random() * (b - a),
+  randInt: (a, b) => Math.floor(a + Math.random() * (b - a + 1)),
+  choice: (arr) => arr[Math.floor(Math.random() * arr.length)],
+  clamp: (v, a, b) => (v < a ? a : v > b ? b : v),
+  lerp: (a, b, t) => a + (b - a) * t,
+  dist: (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1),
+  angle: (x1, y1, x2, y2) => Math.atan2(y2 - y1, x2 - x1),
+  rectHit: (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y,
+  circleHit: (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < (a.r + b.r) ** 2,
+  hsl: (h, s = 80, l = 60, a = 1) => `hsla(${h},${s}%,${l}%,${a})`,
+};
+
+// ---------------- 入力 ----------------
+// 押しっぱなし: left/right/up/down/a/b   押した瞬間: leftPressed ... aPressed/bPressed
+// pointer: {x,y,nx,ny,down,pressed,released,dx,dy}  (x,y はゲーム座標, nx,ny は -1..1)
+// swipe: 'left'|'right'|'up'|'down'|null （このフレームでスワイプがあった時だけ）
+// tap: このフレームで短いタップ/クリックがあったら true（pointer.x,y がその位置）
+const DIRS = ["left", "right", "up", "down"];
+const KEYMAP = {
+  ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
+  ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down",
+  KeyZ: "a", Space: "a", Enter: "a", KeyJ: "a", KeyX: "b", ShiftLeft: "b", ShiftRight: "b", KeyK: "b",
+};
+const Input = {
+  left: false, right: false, up: false, down: false, a: false, b: false,
+  leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, aPressed: false, bPressed: false,
+  pointer: { x: 0, y: 0, nx: 0, ny: 0, down: false, pressed: false, released: false, dx: 0, dy: 0 },
+  swipe: null, tap: false,
+  _key: {}, _pad: {}, _one: false, _prev: {}, _pulse: {}, _ptrPressed: false, _ptrReleased: false,
+  _dx: 0, _dy: 0, _swipe: null, _tap: false, _ignoreUntilUp: false,
+  _begin() {
+    for (const k of [...DIRS, "a", "b"]) {
+      const held = !!(this._key[k] || this._pad[k] || (k === "a" && this._one));
+      const pulse = !!this._pulse[k];
+      this[k] = held || pulse;
+      this[k + "Pressed"] = (held && !this._prev[k]) || pulse;
+      this._prev[k] = held;
+    }
+    this._pulse = {};
+    const p = this.pointer;
+    p.pressed = this._ptrPressed; p.released = this._ptrReleased; p.dx = this._dx; p.dy = this._dy;
+    this.swipe = this._swipe; this.tap = this._tap;
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+  },
+  _clear() {
+    this._key = {}; this._pad = {}; this._one = false; this._pulse = {};
+    this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
+    this.pointer.down = false;
+    for (const k of [...DIRS, "a", "b"]) this._prev[k] = false;
+    this._ignoreUntilUp = true;
+  },
+};
+
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); e.preventDefault(); return; }
+  if (e.code === "KeyM") { Sound.toggle(); return; }
+  const k = KEYMAP[e.code];
+  if (!k) return;
+  e.preventDefault();
+  Sound.unlock();
+  if (__G.state === "title" || __G.state === "over" || __G.state === "clear") {
+    if (k === "a" && !e.repeat && (__G.state === "title" || performance.now() - __G.endedAt > 700)) startGame();
+    return;
+  }
+  if (__G.paused) { if (k === "a" && !e.repeat) togglePause(false); return; }
+  Input._key[k] = true;
+});
+window.addEventListener("keyup", (e) => { const k = KEYMAP[e.code]; if (k) Input._key[k] = false; });
+window.addEventListener("blur", () => { Input._key = {}; });
+
+// ステージ上のポインタ（タッチ・マウス共通）
+let __viewRect = { left: 0, top: 0, width: 1, height: 1 };
+let __ptrStart = null;
+function __toGame(ev) {
+  const r = __viewRect;
+  const u = (ev.clientX - r.left) / r.width, v = (ev.clientY - r.top) / r.height;
+  return { x: u * __G.W, y: v * __G.H, nx: u * 2 - 1, ny: -(v * 2 - 1) };
+}
+let __activePtr = null;
+stage.addEventListener("pointerdown", (ev) => {
+  Sound.unlock();
+  if (__G.state !== "playing" || __G.paused) return;
+  if (__activePtr !== null && __activePtr !== ev.pointerId) return;
+  __activePtr = ev.pointerId;
+  try { stage.setPointerCapture(ev.pointerId); } catch (_) {}
+  Input._ignoreUntilUp = false;
+  const g = __toGame(ev);
+  Object.assign(Input.pointer, g, { down: true });
+  Input._ptrPressed = true;
+  __ptrStart = { x: ev.clientX, y: ev.clientY, t: performance.now(), gx: g.x, gy: g.y };
+  if (CFG.scheme === "ワンボタン") Input._one = true;
+  ev.preventDefault();
+});
+stage.addEventListener("pointermove", (ev) => {
+  if (ev.pointerId !== __activePtr) {
+    if (ev.pointerType === "mouse" && __activePtr === null) Object.assign(Input.pointer, __toGame(ev));
+    return;
+  }
+  const g = __toGame(ev);
+  Input._dx += g.x - Input.pointer.x; Input._dy += g.y - Input.pointer.y;
+  Object.assign(Input.pointer, g);
+});
+function __ptrEnd(ev) {
+  if (ev.pointerId !== __activePtr) return;
+  __activePtr = null;
+  Input.pointer.down = false;
+  Input._ptrReleased = true;
+  Input._one = false;
+  if (__ptrStart) {
+    const dx = ev.clientX - __ptrStart.x, dy = ev.clientY - __ptrStart.y;
+    const d = Math.hypot(dx, dy), dt = performance.now() - __ptrStart.t;
+    if (d > 28 && dt < 600) {
+      const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+      Input._swipe = dir;
+      if (CFG.scheme === "タップ/スワイプ") Input._pulse[dir] = true;
+    } else if (d <= 28 && dt < 500) {
+      Input._tap = true;
+      Input.pointer.x = __ptrStart.gx; Input.pointer.y = __ptrStart.gy;
+    }
+  }
+  __ptrStart = null;
+}
+stage.addEventListener("pointerup", __ptrEnd);
+stage.addEventListener("pointercancel", __ptrEnd);
+stage.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault());
+
+// 仮想パッド（タッチ端末 かつ 操作=仮想パッド のときだけ表示）
+function __buildPad() {
+  if (!(IS_TOUCH && CFG.scheme === "仮想パッド")) return;
+  padEl.classList.add("show");
+  const dirs = [["up", "▲", 66, 14], ["left", "◀", 8, 72], ["right", "▶", 124, 72], ["down", "▼", 66, 130]];
+  let html = "";
+  for (const [k, s, x, y] of dirs) html += `<div class="pbtn dir" data-btn="${k}" style="left:${x + 10}px;top:${y - 6}px">${s}</div>`;
+  const btns = (CFG.buttons && CFG.buttons.length ? CFG.buttons : [{ key: "A", label: "A" }]).slice(0, 2);
+  btns.forEach((b, i) => {
+    const right = i === 0 ? 18 : 108, top = i === 0 ? 60 : 92;
+    html += `<div class="pbtn act" data-btn="${b.key.toLowerCase()}" style="right:${right}px;top:${top - 20}px">${b.label || b.key}</div>`;
+  });
+  padEl.innerHTML = html;
+  const owner = {};
+  const refresh = () => {
+    const on = {};
+    for (const id in owner) if (owner[id]) on[owner[id]] = true;
+    Input._pad = on;
+    padEl.querySelectorAll(".pbtn").forEach((el) => el.classList.toggle("on", !!on[el.dataset.btn]));
+  };
+  const hit = (ev) => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return el && el.dataset && el.dataset.btn ? el.dataset.btn : null;
+  };
+  padEl.addEventListener("pointerdown", (ev) => {
+    Sound.unlock(); ev.preventDefault();
+    try { padEl.setPointerCapture(ev.pointerId); } catch (_) {}
+    if (__G.state !== "playing") { if (__G.state !== "boot") startGame(); return; }
+    if (__G.paused) { togglePause(false); return; }
+    owner[ev.pointerId] = hit(ev); refresh();
+  });
+  padEl.addEventListener("pointermove", (ev) => { if (ev.pointerId in owner) { owner[ev.pointerId] = hit(ev); refresh(); } });
+  const up = (ev) => { delete owner[ev.pointerId]; refresh(); };
+  padEl.addEventListener("pointerup", up);
+  padEl.addEventListener("pointercancel", up);
+}
+
+// ---------------- 音（Web Audio で合成。外部ファイル不要） ----------------
+const Sound = {
+  ctx: null, muted: false,
+  unlock() {
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) { this.ctx = null; }
+  },
+  toggle() {
+    this.muted = !this.muted;
+    $("muteBtn").textContent = this.muted ? "🔇" : "🔊";
+    try { localStorage.setItem("mgf:mute", this.muted ? "1" : "0"); } catch (_) {}
+  },
+  // tone(周波数Hz, 長さ秒, 波形, 音量0-1, 終わりの周波数)
+  tone(freq = 440, dur = 0.1, type = "square", vol = 0.15, slideTo = null) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+    } catch (_) {}
+  },
+  noise(dur = 0.2, vol = 0.2) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const n = Math.floor(this.ctx.sampleRate * dur), buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+      const d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const s = this.ctx.createBufferSource(), g = this.ctx.createGain(); g.gain.value = vol;
+      s.buffer = buf; s.connect(g).connect(this.ctx.destination); s.start();
+    } catch (_) {}
+  },
+  // 用意済みの効果音: shot hit explode jump coin powerup hurt select clear over
+  play(name) {
+    const P = {
+      shot: () => this.tone(880, 0.07, "square", 0.08, 440),
+      hit: () => this.tone(220, 0.08, "square", 0.12, 110),
+      explode: () => this.noise(0.35, 0.25),
+      jump: () => this.tone(300, 0.15, "triangle", 0.18, 700),
+      coin: () => { this.tone(988, 0.06, "square", 0.1); setTimeout(() => this.tone(1319, 0.12, "square", 0.1), 60); },
+      powerup: () => this.tone(400, 0.3, "triangle", 0.18, 1200),
+      hurt: () => this.tone(200, 0.25, "sawtooth", 0.15, 60),
+      select: () => this.tone(660, 0.05, "square", 0.08),
+      clear: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, "triangle", 0.18), i * 110)),
+      over: () => [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, "triangle", 0.18), i * 180)),
+    };
+    (P[name] || P.select)();
+  },
+};
+try { if (localStorage.getItem("mgf:mute") === "1") Sound.toggle(); } catch (_) {}
+
+// ---------------- 画面サイズ ----------------
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+let ctx2d = null, R3 = null;
+function __layout() {
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  if (CFG.mode === "3d") {
+    const ar = CFG.w / CFG.h;
+    let w = sw, h = sw / ar;
+    if (h > sh) { h = sh; w = sh * ar; }
+    canvas.style.width = w + "px"; canvas.style.height = h + "px";
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (R3) { R3.renderer.setSize(w, h, false); if (api.camera && api.camera.isPerspectiveCamera) { api.camera.aspect = ar; api.camera.updateProjectionMatrix(); } }
+  } else {
+    const s = Math.min(sw / CFG.w, sh / CFG.h);
+    canvas.style.width = CFG.w * s + "px"; canvas.style.height = CFG.h * s + "px";
+    canvas.width = Math.round(CFG.w * s * DPR); canvas.height = Math.round(CFG.h * s * DPR);
+    __G.W = CFG.w; __G.H = CFG.h;
+    if (ctx2d) { ctx2d.setTransform(canvas.width / CFG.w, 0, 0, canvas.height / CFG.h, 0, 0); ctx2d.imageSmoothingEnabled = true; }
+  }
+  __viewRect = canvas.getBoundingClientRect();
+}
+window.addEventListener("resize", () => setTimeout(__layout, 50));
+window.addEventListener("orientationchange", () => setTimeout(__layout, 200));
+
+// ---------------- ゲームに渡す api ----------------
+const api = {
+  W: CFG.w, H: CFG.h, input: Input, sound: Sound, util: U, isTouch: IS_TOUCH,
+  ctx: null,                               // 2D: CanvasRenderingContext2D
+  THREE: null, scene: null, camera: null, renderer: null,   // 3D のみ
+  time: 0,                                 // プレイ開始からの秒数
+  get score() { return __G.score; },
+  setScore(n) { __G.score = Math.floor(n) || 0; },
+  addScore(n) { __G.score = Math.floor(__G.score + n) || 0; },
+  gameOver() { __endGame("over"); },
+  clear() { __endGame("clear"); },
+  hud(text) { hudEl.textContent = text == null ? "" : String(text); },
+};
+
+// ---------------- 画面（タイトル / 結果 / 一時停止） ----------------
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function __best() { try { return +localStorage.getItem("mgf:best:" + META.id) || 0; } catch (_) { return 0; } }
+function __saveBest(s) { try { if (s > __best()) localStorage.setItem("mgf:best:" + META.id, s); } catch (_) {} }
+const START_HINT = IS_TOUCH ? "画面をタップしてスタート" : "クリック / スペースキーでスタート";
+
+function __showTitle() {
+  const ctl = (META.controls || {})[IS_TOUCH ? "スマホ" : "PC"] || "";
+  const rules = (META.rules || []).map((r) => `<li>${esc(r)}</li>`).join("");
+  overlay.innerHTML = `<div class="panel">
+    <h1>${esc(META.title)}</h1><p>${esc(META.summary)}</p>
+    <div class="box"><b>ルール</b><ul>${rules}</ul></div>
+    <div class="box"><b>操作（${IS_TOUCH ? "スマホ" : "PC"}）</b><p>${esc(ctl)}</p></div>
+    ${__best() ? `<p class="best">ベスト: ${__best()}</p>` : ""}
+    <p class="blink" style="margin-top:10px;font-weight:700">${START_HINT}</p></div>`;
+  overlay.classList.remove("hidden");
+  __G.state = "title";
+}
+function __showResult(kind) {
+  const best = __best();
+  overlay.innerHTML = `<div class="panel">
+    <h2>${kind === "clear" ? "クリア！" : "ゲームオーバー"}</h2>
+    <div class="score">${__G.score}</div>
+    <p class="best">ベスト: ${best}</p>
+    <div><button class="btn" id="retryBtn" type="button">もう一度</button>
+    <a class="btn sub" href="../index.html">一覧へ</a></div></div>`;
+  overlay.classList.remove("hidden");
+  $("retryBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(); });
+}
+overlay.addEventListener("pointerup", (ev) => {
+  if (ev.target.closest && ev.target.closest("a,button")) return;
+  Sound.unlock();
+  if (__G.state === "title") startGame();
+  else if (__G.paused) togglePause(false);
+});
+
+function togglePause(force) {
+  if (__G.state !== "playing") return;
+  const p = typeof force === "boolean" ? force : !__G.paused;
+  __G.paused = p;
+  if (p) {
+    overlay.innerHTML = `<div class="panel"><h2>一時停止中</h2><p class="blink">${IS_TOUCH ? "タップで再開" : "クリック / スペースで再開"}</p></div>`;
+    overlay.classList.remove("hidden");
+    Input._clear();
+  } else {
+    overlay.classList.add("hidden");
+    __last = performance.now();
+  }
+}
+$("pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); togglePause(); });
+$("muteBtn").addEventListener("click", (e) => { e.stopPropagation(); Sound.unlock(); Sound.toggle(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) togglePause(true); });
+
+// ---------------- 進行 ----------------
+let GAME = null, __last = 0;
+function __fail(where, e) {
+  console.error(e);
+  __G.errors.push(`${where}: ${e && e.message ? e.message : e}`);
+  __G.state = "error";
+  overlay.innerHTML = `<div class="panel"><h2>エラーが発生しました</h2><p>${esc(e && e.message ? e.message : e)}</p></div>`;
+  overlay.classList.remove("hidden");
+}
+function __init3D() {
+  if (R3) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(DPR);
+  R3 = { renderer };
+  api.THREE = THREE; api.renderer = renderer;
+}
+function startGame() {
+  if (!GAME) return;
+  Input._clear();
+  __G.score = 0; __G.frame = 0; __G.paused = false; __G.plays++;
+  api.time = 0; api.hud("");
+  if (CFG.mode === "3d") {
+    api.scene = new THREE.Scene();
+    api.camera = new THREE.PerspectiveCamera(60, CFG.w / CFG.h, 0.1, 1000);
+    api.camera.position.set(0, 5, 10); api.camera.lookAt(0, 0, 0);
+  }
+  try { GAME.init(api); } catch (e) { return __fail("init", e); }
+  __layout();
+  overlay.classList.add("hidden");
+  __G.state = "playing"; __G.startedAt = performance.now();
+  __last = performance.now();
+}
+function __endGame(kind) {
+  if (__G.state !== "playing") return;
+  __G.state = kind; __G.endedAt = performance.now();
+  __saveBest(__G.score);
+  Sound.play(kind === "clear" ? "clear" : "over");
+  setTimeout(() => __showResult(kind), 500);
+}
+function __frame(now) {
+  requestAnimationFrame(__frame);
+  if (__G.state !== "playing" || __G.paused) {
+    if (CFG.mode === "3d" && R3 && api.scene && api.camera && !__G.noDraw) R3.renderer.render(api.scene, api.camera);
+    return;
+  }
+  const dt = Math.min(0.05, Math.max(0, (now - __last) / 1000));
+  __last = now;
+  api.time += dt;
+  try {
+    Input._begin();
+    GAME.update(dt);
+    if (__G.state === "error") return;
+    if (__G.noDraw) { /* 自動テストで長い時間を早送りするときは描画を省く */ }
+    else if (CFG.mode === "3d") R3.renderer.render(api.scene, api.camera);
+    else if (GAME.draw) { ctx2d.save(); GAME.draw(ctx2d); ctx2d.restore(); }
+    __G.frame++;
+    if (!Number.isFinite(__G.score)) throw new Error("score が数値ではありません");
+  } catch (e) { __fail("update/draw", e); }
+}
+// 自動テスト用：ゲームの状態（Game の変数）を短い文字列に要約する。操作したときとしないときの違いを比べるのに使う
+__G.peek = function () {
+  const seen = new WeakSet(); let n = 0;
+  const walk = (v, d) => {
+    if (++n > 5000 || v === null || v === undefined) return null;
+    const t = typeof v;
+    if (t === "number") return Number.isFinite(v) ? Math.round(v * 1000) / 1000 : String(v);
+    if (t === "string") return v.length > 60 ? v.slice(0, 60) : v;
+    if (t === "boolean") return v;
+    if (t !== "object" || d > 4 || seen.has(v)) return null;
+    seen.add(v);
+    if (v === api || v === Input || v === Sound || v === U || (typeof Node !== "undefined" && v instanceof Node) || ArrayBuffer.isView(v)) return null;
+    if (v.isObject3D) return [walk(v.position, d + 1), walk(v.rotation && { x: v.rotation.x, y: v.rotation.y, z: v.rotation.z }, d + 1), v.visible, v.children ? v.children.length : 0];
+    if (v.isVector2 || v.isVector3) return [v.x, v.y, v.z].map((x) => walk(x, d + 1));
+    if (Array.isArray(v)) return [v.length].concat(v.slice(0, 40).map((x) => walk(x, d + 1)));
+    if (v instanceof Map || v instanceof Set) return [v.size];
+    const o = {};
+    for (const k of Object.keys(v).slice(0, 60)) o[k] = walk(v[k], d + 1);
+    return o;
+  };
+  let s;
+  try { s = JSON.stringify(walk(GAME, 0)); } catch (_) { s = ""; }
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(16) + ":" + s.length;
+};
+function __boot(game) {
+  GAME = game;
+  if (!GAME || typeof GAME.init !== "function" || typeof GAME.update !== "function") {
+    return __fail("boot", new Error("Game オブジェクト（init / update）が定義されていません"));
+  }
+  try {
+    if (CFG.mode === "3d") { __init3D(); }
+    else { ctx2d = canvas.getContext("2d"); api.ctx = ctx2d; }
+  } catch (e) { return __fail("boot", e); }
+  __buildPad();
+  __layout();
+  if (CFG.mode !== "3d") { ctx2d.fillStyle = "#000"; ctx2d.fillRect(0, 0, CFG.w, CFG.h); }
+  __showTitle();
+  requestAnimationFrame(__frame);
+}
+
+// ===== ここからゲーム固有のコード =====
+const Game = {
+  init(api) {
+    this.api = api;
+    const U = api.util;
+    this.W = api.W;
+    this.H = api.H;
+    this.D = 3;
+    this.GRAV = 900;
+    this.GOAL_X = 21000;
+    this.MAX_MISS = 3;
+
+    this.t = 0;
+    this.state = 'play';
+    this.stateT = 0;
+    this.endTimer = 0;
+    this.overCalled = false;
+
+    this.px = 140;
+    this.py = 280;
+    this.vy = 0;
+    this.onGround = true;
+    this.wasAir = false;
+    this.fallV = 0;
+    this.runFrame = 0;
+    this.dustT = 0;
+    this.miss = 0;
+    this.invuln = 0;
+    this.recover = 0;
+    this.scoreBase = 0;
+
+    this.segs = [];
+    this.segI = 0;
+    this.nextSpawnX = 700;
+    this.obs = [];
+    this.parts = [];
+    this.floats = [];
+    this.clouds = [];
+    this.mts = [];
+
+    for (let i = 0; i < 7; i++) {
+      this.clouds.push({ x: U.rand(0, this.W), y: U.rand(16, 110), w: U.randInt(3, 6), h: U.randInt(2, 3), sp: U.rand(4, 9) });
+    }
+    for (let i = 0; i < 10; i++) {
+      this.mts.push({ x: U.rand(0, this.W), w: U.randInt(14, 26), h: U.randInt(26, 64) });
+    }
+
+    this.shake = 0;
+    this.redFlash = 0;
+    this.whiteFlash = 0;
+
+    this.buildTerrain(0, 460, 280);
+    this.buildTerrain(460, this.GOAL_X + 2200, null);
+    this.buildTerrain(this.GOAL_X + 2200, this.GOAL_X + 6000, 280);
+
+    this.api.setScore(0);
+  },
+
+  speed() {
+    return 120 + 10 * this.api.util.clamp(this.t / 120, 0, 1);
+  },
+
+  buildTerrain(x0, x1, fixedY) {
+    let x = x0;
+    let y = fixedY != null ? fixedY : this.segs.length ? this.segs[this.segs.length - 1].y : 280;
+    const U = this.api.util;
+    while (x < x1) {
+      const w = fixedY != null ? 120 : U.randInt(90, 220);
+      this.segs.push({ x0: x, x1: x + w, y: y });
+      x += w;
+      if (fixedY != null) continue;
+      if (x < 460) { y = 280; continue; }
+      if (x > this.GOAL_X - 900 && x < this.GOAL_X + 2200) { y = 280; continue; }
+      const d = U.choice([-24, -12, 0, 0, 0, 12, 24]);
+      y = U.clamp(y + d, 236, 296);
+    }
+  },
+
+  groundAt(wx) {
+    const s = this.segs;
+    if (wx <= s[0].x0) return s[0].y;
+    let i = this.segI;
+    if (i < 0 || i >= s.length || wx < s[i].x0) i = 0;
+    while (i < s.length - 1 && wx >= s[i].x1) i++;
+    this.segI = i;
+    return s[i].y;
+  },
+
+  burst(x, y, n, cols, spd, life, grav) {
+    const U = this.api.util;
+    for (let i = 0; i < n; i++) {
+      const a = U.rand(0, 6.283);
+      const s = spd * U.rand(0.25, 1);
+      this.parts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - spd * 0.25, r: U.rand(1.5, 3.5), life: life * U.rand(0.5, 1), max: life, c: U.choice(cols), g: grav });
+    }
+    if (this.parts.length > 240) this.parts.splice(0, this.parts.length - 240);
+  },
+
+  floater(x, y, txt, c) {
+    this.floats.push({ x: x, y: y, txt: txt, c: c, life: 0.9, max: 0.9 });
+    if (this.floats.length > 10) this.floats.shift();
+  },
+
+  spawnObs(x) {
+    const U = this.api.util;
+    const gy = this.groundAt(x);
+    const t = this.t;
+    let type = 'spike';
+    const r = U.rand(0, 1);
+    if (t > 75 && r < (t > 120 ? 0.32 : 0.2)) type = 'robot';
+    else if (t > 35 && r < 0.55) type = 'ball';
+    if (type === 'spike') {
+      const n = t > 90 && U.rand(0, 1) < 0.25 ? 2 : 1;
+      this.obs.push({ type: 'spike', x: x, n: n, gy: gy, counted: false, dead: false });
+    } else if (type === 'ball') {
+      this.obs.push({ type: 'ball', x: x, gy: gy, ph: U.rand(0, 6.28), sp: U.rand(2.0, 2.8), counted: false, dead: false });
+    } else {
+      this.obs.push({ type: 'robot', x: x, y: gy, vx: 0, vy: 0, onG: true, cd: 0.5, counted: false, dead: false });
+    }
+  },
+
+  doMiss(x, y, c) {
+    this.miss++;
+    this.invuln = 1.6;
+    this.recover = 1.2;
+    this.shake = 12;
+    this.redFlash = 0.45;
+    this.burst(x, y, 24, [c, '#FFFFFF', '#FF4500', '#000000'], 220, 0.7, 500);
+    this.floater(this.px, this.py - 34, 'MISS ' + this.miss + '/' + this.MAX_MISS, '#FF4500');
+    this.api.sound.play('hurt');
+    this.api.sound.tone(110, 0.5, 'sawtooth', 0.22, 55);
+    if (this.miss >= this.MAX_MISS) this.endGame(false, 'miss');
+  },
+
+  endGame(win, kind) {
+    if (this.state !== 'play') return;
+    this.state = win ? 'clear' : 'over';
+    this.stateT = 0;
+    this.endKind = kind;
+    this.endTimer = win ? 1.5 : 1.8;
+    if (win) {
+      this.whiteFlash = 0.8;
+      this.api.sound.play('clear');
+      [523, 659, 784, 1047].forEach((f, i) => this.api.sound.tone(f, 0.16, 'square', 0.2));
+      this.burst(this.px, this.py - 16, 40, ['#FFD700', '#FFFFFF', '#FF0000', '#228B22'], 260, 1.1, 300);
+    } else {
+      this.api.sound.play('over');
+      this.api.sound.tone(220, 0.6, 'sawtooth', 0.25, 60);
+      this.burst(this.px, this.py - 12, 30, ['#FF0000', '#FFFFFF', '#000000'], 240, 0.9, 400);
+    }
+  },
+
+  update(dt) {
+    const U = this.api.util;
+    const inp = this.api.input;
+    this.stateT += dt;
+
+    for (let i = this.parts.length - 1; i >= 0; i--) {
+      const p = this.parts[i];
+      p.life -= dt;
+      if (p.life <= 0) { this.parts.splice(i, 1); continue; }
+      p.vy += (p.g || 0) * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+    for (let i = this.floats.length - 1; i >= 0; i--) {
+      const f = this.floats[i];
+      f.life -= dt;
+      f.y -= 26 * dt;
+      if (f.life <= 0) this.floats.splice(i, 1);
+    }
+    this.shake = Math.max(0, this.shake - 30 * dt);
+    this.redFlash = Math.max(0, this.redFlash - 1.4 * dt);
+    this.whiteFlash = Math.max(0, this.whiteFlash - 1.2 * dt);
+
+    const camX = this.px - 140;
+    for (const c of this.clouds) {
+      c.x -= c.sp * dt;
+      if (c.x < -40) { c.x = this.W + 40; c.y = U.rand(16, 110); }
+    }
+    for (const m of this.mts) {
+      m.x -= this.speed() * 0.35 * dt;
+      if (m.x < -m.w * this.D) { m.x = this.W + 20; m.h = U.randInt(26, 64); m.w = U.randInt(14, 26); }
+    }
+
+    if (this.state === 'clear') {
+      this.endTimer -= dt;
+      if (this.endTimer <= 0 && !this.overCalled) { this.overCalled = true; this.api.clear(); }
+      return;
+    }
+    if (this.state === 'over') {
+      this.endTimer -= dt;
+      if (this.endTimer <= 0 && !this.overCalled) { this.overCalled = true; this.api.gameOver(); }
+      return;
+    }
+
+    this.t += dt;
+    if (this.invuln > 0) this.invuln -= dt;
+    if (this.recover > 0) this.recover -= dt;
+
+    const spd = this.speed() * (this.recover > 0 ? 0.6 : 1);
+    this.px += spd * dt;
+    this.scoreBase = Math.floor(this.px / 10);
+    this.api.setScore(this.scoreBase);
+
+    const gy = this.groundAt(this.px);
+    if (this.onGround) {
+      if (gy < this.py) { this.py = gy; }
+      else if (gy > this.py) { this.onGround = false; this.vy = 0; }
+      else this.py = gy;
+    }
+    if (!this.onGround) {
+      const g = (inp.a && this.vy < 0) ? 520 : this.GRAV;
+      this.vy += g * dt;
+      this.py += this.vy * dt;
+      this.fallV = this.vy;
+      if (this.py >= gy) {
+        this.py = gy;
+        this.vy = 0;
+        this.onGround = true;
+        if (this.fallV > 160) {
+          this.api.sound.play('jump');
+          this.api.sound.tone(140, 0.08, 'square', 0.18, 90);
+          this.burst(this.px, this.py, 8, ['#FFFFFF', '#8B4513'], 90, 0.4, 300);
+        }
+      }
+    } else {
+      this.fallV = 0;
+      this.runFrame += dt * (10 + spd * 0.02);
+      this.dustT -= dt;
+      if (this.dustT <= 0) {
+        this.dustT = 0.09;
+        this.parts.push({ x: this.px - 10, y: this.py - 2, vx: -spd * 0.3 + U.rand(-15, 15), vy: U.rand(-40, -10), r: U.rand(1.5, 3), life: 0.35, max: 0.35, c: '#FFFFFF', g: 100 });
+      }
+    }
+
+    if (inp.aPressed && this.onGround) {
+      this.vy = -300;
+      this.onGround = false;
+      this.api.sound.play('jump');
+      this.api.sound.tone(650, 0.09, 'square', 0.18, 950);
+      this.burst(this.px, this.py, 6, ['#FFFFFF'], 80, 0.35, 200);
+    }
+
+    if (this.px < this.GOAL_X - 420) {
+      while (this.nextSpawnX < camX + this.W + 120) {
+        this.spawnObs(this.nextSpawnX);
+        let base;
+        if (this.t < 60) base = 1.5;
+        else if (this.t < 120) base = 1.3;
+        else base = 1.2;
+        this.nextSpawnX += Math.max(95, base * this.speed() * U.rand(0.88, 1.15));
+      }
+    }
+
+    const pRect = { x: this.px - 9, y: this.py - 18, w: 18, h: 18 };
+    const pCirc = { x: this.px, y: this.py - 9, r: 9 };
+
+    for (let i = this.obs.length - 1; i >= 0; i--) {
+      const o = this.obs[i];
+      if (o.dead) { this.obs.splice(i, 1); continue; }
+      if (o.type === 'ball') {
+        o.y = o.gy - 46 + 34 * Math.sin(o.ph + this.t * o.sp);
+      } else if (o.type === 'robot') {
+        o.cd -= dt;
+        if (o.onG) {
+          if (this.px - o.x < 175 && this.px - o.x > 0 && o.cd <= 0) {
+            o.vy = -250;
+            o.vx = -105;
+            o.onG = false;
+            o.cd = 1.0;
+            this.api.sound.tone(300, 0.08, 'square', 0.12, 420);
+          }
+        } else {
+          o.vy += this.GRAV * dt;
+          o.x += o.vx * dt;
+          o.y += o.vy * dt;
+          const rg = this.groundAt(o.x);
+          if (o.y >= rg) {
+            o.y = rg;
+            o.vy = 0;
+            o.vx = 0;
+            o.onG = true;
+            this.burst(o.x, o.y, 6, ['#FFFFFF', '#0000FF'], 80, 0.35, 300);
+          }
+        }
+      }
+
+      if (this.invuln <= 0 && this.state === 'play') {
+        let hit = false;
+        if (o.type === 'spike') {
+          for (let k = 0; k < o.n; k++) {
+            const sx = o.x + k * 24;
+            if (U.rectHit(pRect, { x: sx - 7, y: o.gy - 38, w: 14, h: 38 })) { hit = true; break; }
+          }
+        } else if (o.type === 'ball') {
+          if (U.circleHit(pCirc, { x: o.x, y: o.y, r: 10 })) hit = true;
+        } else {
+          if (U.rectHit(pRect, { x: o.x - 13, y: o.y - 27, w: 26, h: 27 })) hit = true;
+        }
+        if (hit) {
+          if (o.type === 'robot') {
+            o.dead = true;
+            this.burst(o.x, o.y - 14, 18, ['#0000FF', '#FFFFFF', '#000000'], 200, 0.6, 400);
+          }
+          this.doMiss(this.px, this.py - 10, o.type === 'robot' ? '#0000FF' : '#FF4500');
+          if (this.state !== 'play') return;
+        }
+      }
+
+      if (!o.counted && this.px > o.x + 26) {
+        o.counted = true;
+        this.api.addScore(10);
+        this.floater(this.px, this.py - 30, '+10', '#FFFFFF');
+      }
+      if (o.x < camX - 160) this.obs.splice(i, 1);
+    }
+
+    if (this.px >= this.GOAL_X) {
+      this.api.addScore(500 + Math.max(0, Math.floor((180 - this.t) * 5)));
+      this.endGame(true, 'goal');
+      return;
+    }
+    if (this.t >= 180) {
+      this.endGame(false, 'time');
+    }
+  },
+
+  sprite(ctx, rows, map, x, y, s) {
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      for (let c = 0; c < row.length; c++) {
+        const ch = row[c];
+        if (ch === '.') continue;
+        const col = map[ch];
+        if (!col) continue;
+        ctx.fillStyle = col;
+        ctx.fillRect(x + c * s, y + r * s, s, s);
+      }
+    }
+  },
+
+  draw() {
+    const ctx = this.api.ctx;
+    const U = this.api.util;
+    const W = this.W, H = this.H, D = this.D;
+    ctx.imageSmoothingEnabled = false;
+    const camX = this.px - 140;
+
+    ctx.fillStyle = '#87CEEB';
+    ctx.fillRect(0, 0, W, H);
+
+    for (const m of this.mts) {
+      const bx = m.x, bw = m.w * D, bh = m.h * D, by = 292;
+      ctx.fillStyle = '#90EE90';
+      for (let r = 0; r < m.h; r++) {
+        const w = Math.max(2, Math.ceil(((r + 1) / m.h) * bw));
+        ctx.fillRect(Math.round(bx + (bw - w) / 2), by - (r + 1) * D, w, D);
+      }
+    }
+    for (const c of this.clouds) {
+      ctx.fillStyle = '#FFFFFF';
+      const cw = c.w * D, ch = c.h * D;
+      ctx.fillRect(Math.round(c.x), Math.round(c.y), cw, ch);
+      ctx.fillRect(Math.round(c.x + cw * 0.2), Math.round(c.y - D * 2), Math.round(cw * 0.5), D * 2);
+      ctx.fillRect(Math.round(c.x + cw * 0.55), Math.round(c.y - D), Math.round(cw * 0.35), D);
+    }
+
+    let i = this.segI;
+    if (i < 0) i = 0;
+    while (i < this.segs.length && this.segs[i].x1 < camX) i++;
+    for (; i < this.segs.length && this.segs[i].x0 < camX + W; i++) {
+      const s = this.segs[i];
+      const x0 = Math.round(s.x0 - camX), x1 = Math.round(s.x1 - camX);
+      const w = x1 - x0;
+      if (w <= 0) continue;
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(x0, s.y, w, H - s.y);
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(x0, s.y, w, D * 3);
+      const step = 12;
+      for (let gx = Math.floor(camX / step) * step; gx < camX + W; gx += step) {
+        if (gx >= s.x0 && gx < s.x1 && ((gx / step) | 0) % 2 === 0) {
+          ctx.fillStyle = '#8B4513';
+          ctx.fillRect(Math.round(gx - camX), s.y + D * 3, D, D);
+        }
+      }
+      for (let k = 0; k < 3; k++) {
+        const h1 = Math.sin(s.x0 * 0.013 + k * 2.1) * 43758.5453;
+        const h2 = Math.sin(s.x0 * 0.021 + k * 4.7) * 24634.6345;
+        const fx = (h1 - Math.floor(h1)), fy = (h2 - Math.floor(h2));
+        const pxp = Math.round(x0 + fx * w);
+        if (pxp >= x0 && pxp < x1) {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(pxp, s.y + D * 4 + Math.floor(fy * (H - s.y - D * 6)), D, D);
+        }
+      }
+    }
+
+    const gs = this.groundAt(this.GOAL_X);
+    const gx0 = Math.round(this.GOAL_X - camX);
+    if (gx0 > -60 && gx0 < W + 60) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(gx0, gs - 72, 3, 72);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(gx0 - 3, gs - 4, 9, 4);
+      const fw = 24, fh = 15;
+      for (let r = 0; r < fh; r++) {
+        const w = Math.max(4, Math.round(fw * (1 - r / fh)));
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(gx0 + 3, gs - 72 + r, w, 1);
+      }
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(gx0 + 3, gs - 72 + 6, 8, 3);
+    }
+
+    for (const o of this.obs) {
+      const sx = Math.round(o.x - camX);
+      if (sx < -60 || sx > W + 60) continue;
+      if (o.type === 'spike') {
+        for (let k = 0; k < o.n; k++) {
+          const bx = sx + k * 24;
+          for (let r = 0; r < 16; r++) {
+            const w = Math.max(1, Math.ceil(8 * (r + 1) / 16));
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(bx + Math.floor((8 - w) / 2) * D, o.gy - (r + 1) * D, w * D, D);
+          }
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(bx + 3 * D, o.gy - 16 * D, D, D);
+        }
+      } else if (o.type === 'ball') {
+        const by = Math.round(o.y);
+        const rows = ['..XXXX..', '.XXXXXX.', 'XXWXXXXX', 'XXXXXXXX', 'XXXXXXXX', 'XXXXXXXX', '.XXXXXX.', '..XXXX..'];
+        this.sprite(ctx, rows, { X: '#FF4500', W: '#FFFFFF' }, sx - 12, by - 12, D);
+      } else {
+        const by = Math.round(o.y);
+        const rows = [
+          '...XXXXXXX..',
+          '..XXXXXXXX..',
+          '.XXXXXXXXXX.',
+          '.XXWXXXXWXX.',
+          '.XXXXXXXXXX.',
+          '..XXXXXXXX..',
+          '.XXXXXXXXXX.',
+          'XX.XXXXXX.XX',
+          'XX.XXXXXX.XX',
+          '..XXXXXXXX..',
+          '...XX..XX...',
+          '...XX..XX...'
+        ];
+        this.sprite(ctx, rows, { X: '#0000FF', W: '#FFFFFF' }, sx - 18, by - 36, D);
+      }
+    }
+
+    if (this.state === 'play' || this.state === 'clear') {
+      const blink = this.invuln > 0 && Math.floor(this.t * 14) % 2 === 0;
+      if (!blink) {
+        const pxx = Math.round(this.px - camX);
+        const pyy = Math.round(this.py);
+        let rows;
+        if (!this.onGround) {
+          rows = ['..RRRR..', '.RRRRRR.', '.RWWWW..', '.RWBWB..', '.RWWWW..', '..RRRR..', '.RR.RR..', '........'];
+        } else if (Math.floor(this.runFrame) % 2 === 0) {
+          rows = ['..RRRR..', '.RRRRRR.', '.RWWWW..', '.RWBWB..', '.RWWWW..', '..RRRR..', '.RR..RR.', '.RR..RR.'];
+        } else {
+          rows = ['..RRRR..', '.RRRRRR.', '.RWWWW..', '.RWBWB..', '.RWWWW..', '..RRRR..', '..R..R..', '.R....R.'];
+        }
+        this.sprite(ctx, rows, { R: '#FF0000', W: '#FFFFFF', B: '#000000' }, pxx - 12, pyy - 24, D);
+      }
+    }
+
+    for (const p of this.parts) {
+      ctx.globalAlpha = U.clamp(p.life / p.max, 0, 1);
+      ctx.fillStyle = p.c;
+      const r = Math.max(1, Math.round(p.r));
+      ctx.fillRect(Math.round(p.x - camX) - (r >> 1), Math.round(p.y) - (r >> 1), r, r);
+    }
+    ctx.globalAlpha = 1;
+
+    if (this.redFlash > 0) {
+      ctx.globalAlpha = Math.min(0.4, this.redFlash);
+      ctx.fillStyle = '#FF0000';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+    if (this.whiteFlash > 0) {
+      ctx.globalAlpha = Math.min(0.5, this.whiteFlash);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+
+    const pRect = { x: this.px - 9, y: this.py - 18, w: 18, h: 18 };
+    const pCirc = { x: this.px, y: this.py - 9, r: 9 };
+    for (const o of this.obs) {
+      let hb = null;
+      if (o.type === 'spike') hb = { x: o.x - 7, y: o.gy - 38, w: 14, h: 38 };
+      else if (o.type === 'ball') hb = { x: o.x - 10, y: o.y - 10, w: 20, h: 20 };
+      else hb = { x: o.x - 13, y: o.y - 27, w: 26, h: 27 };
+      if (hb && (U.rectHit(pRect, hb) || (o.type === 'ball' && U.circleHit(pCirc, { x: o.x, y: o.y, r: 10 })))) {
+        const bx = Math.round(hb.x + hb.w / 2 - camX), by = Math.round(hb.y);
+        ctx.fillStyle = '#FF4500';
+        ctx.fillRect(bx - 4, by - 14, 8, 8);
+        ctx.fillRect(bx - 2, by - 6, 4, 4);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(bx - 1, by - 12, 2, 2);
+      }
+    }
+
+    for (const f of this.floats) {
+      ctx.globalAlpha = U.clamp(f.life / f.max, 0, 1);
+      ctx.font = 'bold 11px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#000000';
+      ctx.fillText(f.txt, Math.round(f.x - camX) + 1, Math.round(f.y) + 1);
+      ctx.fillStyle = f.c;
+      ctx.fillText(f.txt, Math.round(f.x - camX), Math.round(f.y));
+      ctx.globalAlpha = 1;
+    }
+
+    const heart = [
+      [0, 1, 1, 0, 1, 1, 0],
+      [1, 1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1],
+      [0, 1, 1, 1, 1, 1, 0],
+      [0, 0, 1, 1, 1, 0, 0],
+      [0, 0, 0, 1, 0, 0, 0]
+    ];
+    for (let h = 0; h < 3; h++) {
+      const hx = 10 + h * 26, hy = 8;
+      for (let r = 0; r < heart.length; r++) {
+        for (let c = 0; c < 7; c++) {
+          if (!heart[r][c]) continue;
+          ctx.fillStyle = h < this.MAX_MISS - this.miss ? '#FF0000' : '#000000';
+          ctx.fillRect(hx + c * D, hy + r * D, D, D);
+        }
+      }
+    }
+
+    const remain = Math.max(0, 180 - this.t);
+    const mm = Math.floor(remain / 60), ss = Math.floor(remain % 60);
+    const tstr = mm + ':' + (ss < 10 ? '0' : '') + ss;
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#000000';
+    ctx.fillText('TIME ' + tstr, 92, 22);
+    ctx.fillStyle = remain < 30 && Math.floor(this.t * 3) % 2 === 0 ? '#FF4500' : '#FFFFFF';
+    ctx.fillText('TIME ' + tstr, 91, 21);
+
+    const pct = U.clamp(Math.floor(this.px / this.GOAL_X * 100), 0, 100);
+    const pstr = pct + '%';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#000000';
+    ctx.fillText(pstr, W - 8, 22);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(pstr, W - 9, 21);
+
+    if (this.recover > 0) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#000000';
+      ctx.fillText('SLOW', W / 2 + 1, 22);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText('SLOW', W / 2, 21);
+    }
+
+    if (this.state === 'over') {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 30px "Courier New", monospace';
+      ctx.fillStyle = '#000000';
+      ctx.fillText('GAME OVER', W / 2 + 2, H / 2 - 18);
+      ctx.fillStyle = '#FF4500';
+      ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+      ctx.font = 'bold 14px "Courier New", monospace';
+      ctx.fillStyle = '#000000';
+      ctx.fillText(this.endKind === 'time' ? 'TIME UP!' : 'MISS x3', W / 2 + 1, H / 2 + 8);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(this.endKind === 'time' ? 'TIME UP!' : 'MISS x3', W / 2, H / 2 + 7);
+    } else if (this.state === 'clear') {
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 30px "Courier New", monospace';
+      ctx.fillStyle = '#000000';
+      ctx.fillText('GOAL!', W / 2 + 2, H / 2 - 18);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText('GOAL!', W / 2, H / 2 - 20);
+      ctx.font = 'bold 14px "Courier New", monospace';
+      ctx.fillStyle = '#000000';
+      ctx.fillText('STAGE CLEAR', W / 2 + 1, H / 2 + 8);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText('STAGE CLEAR', W / 2, H / 2 + 7);
+    }
+  }
+};
+// ===== ここまで =====
+__boot(typeof Game !== "undefined" ? Game : null);
+</script>
+</body>
+</html>
