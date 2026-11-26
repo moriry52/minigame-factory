@@ -511,6 +511,7 @@ const Game = {
     this.spawnT = 1.6; this.fireT = 0.3;
     this.shake = 0; this.flash = 0; this.flashCol = '255,240,220';
     this.dead = false; this.deadT = 0; this.clearDone = false; this.clearT = 0;
+    this.ended = false;
     this.lastSec = -1; this.zone = 1; this.bumpCd = 0;
     this.topY = 36; this.botY = this.H - 36;
     this.bubbles = []; this.embers = []; this.clouds = [];
@@ -524,6 +525,39 @@ const Game = {
     this.dragPlayerY = 0;
     this.swipeT = 0;
     this.swipeDir = 0;
+
+    // 移動はスワイプ/ドラッグ（+PCでは矢印キー）にするため、仮想十字キーは非表示にしたい。
+    // ランタイムの API 形状が不明なため、存在しない関数/プロパティにアクセスして例外を出さないよう安全に設定する。
+    try {
+      this.hideDpad = true;
+      this.dpad = false;
+      if (api.input) {
+        if (typeof api.input.hideDpad === 'function') {
+          try { api.input.hideDpad(); } catch (e) {}
+        }
+        api.input.hideDpad = true;
+        api.input.showDpad = false;
+        api.input.dpadVisible = false;
+      }
+      if (typeof api.hideDpad === 'function') {
+        try { api.hideDpad(); } catch (e) {}
+      }
+    } catch (e) {}
+  },
+
+  rr(ctx, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
   },
 
   walls(t) {
@@ -612,17 +646,26 @@ const Game = {
   },
 
   update(dt) {
+    if (!this.api || !this.player) return;
     const api = this.api, U = api.util, inp = api.input, t = api.time;
+    if (this.ended) return;
+
     if (this.clearDone) {
       this.clearT -= dt;
       this.updFx(dt);
-      if (this.clearT <= 0) { api.clear(); this.clearT = -99; }
+      if (this.clearT <= 0) {
+        this.ended = true;
+        api.clear();
+      }
       return;
     }
     if (this.dead) {
       this.deadT -= dt;
       this.updFx(dt);
-      if (this.deadT <= 0) { api.gameOver(); this.deadT = -99; }
+      if (this.deadT <= 0) {
+        this.ended = true;
+        api.gameOver();
+      }
       return;
     }
     const p = this.player;
@@ -639,7 +682,7 @@ const Game = {
     this.walls(t);
     const topY = this.topY, botY = this.botY;
 
-    // ---- 移動：スワイプ／ドラッグ ----
+    // ---- 移動：スワイプ／ドラッグ（PCは矢印キーも併用） ----
     const ptr = inp.pointer;
     if (ptr.down) {
       if (!this.dragging) {
@@ -667,8 +710,12 @@ const Game = {
       if (delta > maxStep) delta = maxStep;
       else if (delta < -maxStep) delta = -maxStep;
       if (delta !== 0) p.y += delta;
-    } else if (this.swipeT > 0) {
-      p.y += this.swipeDir * 265 * dt;
+    } else {
+      let mvInput = 0;
+      if (inp.up) mvInput -= 1;
+      if (inp.down) mvInput += 1;
+      if (this.swipeT > 0) mvInput += this.swipeDir;
+      if (mvInput !== 0) p.y += mvInput * 265 * dt;
     }
 
     p.y = U.clamp(p.y, topY + p.r, botY - p.r);
@@ -732,7 +779,10 @@ const Game = {
       e.age += dt;
       e.x += e.vx * dt;
       e.y = e.baseY + Math.sin(e.age * 2 + e.ph) * e.amp;
-      e.y = U.clamp(e.y, topY + e.r + 4, botY - e.r - 4);
+      const minY = topY + e.r + 4;
+      const maxY = botY - e.r - 4;
+      if (minY <= maxY) e.y = U.clamp(e.y, minY, maxY);
+      else e.y = (topY + botY) / 2;
       if (e.flash > 0) e.flash -= dt * 4;
       e.fireT -= dt;
       if (e.fireT <= 0 && e.x < this.W - 10 && e.x > p.x + 40) {
@@ -862,8 +912,8 @@ const Game = {
     for (let i = this.popups.length - 1; i >= 0; i--) {
       const q = this.popups[i];
       q.life -= dt;
-      if (q.life <= 0) this.popups.splice(i, 1);
-      else q.y -= 24 * dt;
+      if (q.life <= 0) { this.popups.splice(i, 1); continue; }
+      q.y -= 24 * dt;
     }
     this.shake = Math.max(0, this.shake - dt * 26);
     this.flash = Math.max(0, this.flash - dt * 2.2);
@@ -892,6 +942,7 @@ const Game = {
   },
 
   draw(ctx) {
+    if (!this.api || !this.player) return;
     const api = this.api, U = api.util, t = api.time, p = this.player;
     const topY = this.topY, botY = this.botY;
     ctx.save();
@@ -1219,12 +1270,14 @@ const Game = {
     ctx.fillStyle = '#B07A5A';
     ctx.fillText('体温', bx - 26, by + 10);
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.beginPath(); ctx.roundRect(bx - 2, by - 2, bw + 4, bh + 4, 7); ctx.fill();
+    this.rr(ctx, bx - 2, by - 2, bw + 4, bh + 4, 7);
+    ctx.fill();
     ctx.fillStyle = '#87CEFA'; ctx.fillRect(bx, by, bw * 0.35, bh);
     ctx.fillStyle = '#98D98E'; ctx.fillRect(bx + bw * 0.35, by, bw * 0.35, bh);
     ctx.fillStyle = '#FF8A75'; ctx.fillRect(bx + bw * 0.7, by, bw * 0.3, bh);
     ctx.strokeStyle = 'rgba(138,90,68,0.5)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(bx - 2, by - 2, bw + 4, bh + 4, 7); ctx.stroke();
+    this.rr(ctx, bx - 2, by - 2, bw + 4, bh + 4, 7);
+    ctx.stroke();
 
     // マーカー
     const mx = bx + (this.temp / 100) * bw;
@@ -1248,7 +1301,7 @@ const Game = {
       ctx.globalAlpha = Math.min(1, (6 - t) / 1.5);
       ctx.font = 'bold 12px "Hiragino Maru Gothic ProN","M PLUS Rounded 1c",sans-serif';
       ctx.fillStyle = '#8A5A44';
-      ctx.fillText('上下スワイプで移動 / A（Z）で射撃 / 壁に近づくと温まるよ', W / 2, H - 14);
+      ctx.fillText('上下：スワイプ/矢印キー  射撃：A（Z）  壁に近づくと温まるよ', W / 2, H - 14);
       ctx.globalAlpha = 1;
     }
     ctx.textAlign = 'left';
