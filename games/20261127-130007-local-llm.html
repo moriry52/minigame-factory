@@ -69,7 +69,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261127-130007-local-llm", "title": "もりのこおろぎ", "summary": "森を横断する正統派シューティング。スワイプで機体を動かし、動物たちを撃ってボス「大コオロギ」を倒そう。", "rules": ["画面をスワイプ（またはドラッグ）して、左側の自機「きつねのロケット」を上下左右に移動する。", "自機は常に前方（右側）へ自動で射撃を行う。連続で敵を撃破するとコンボが溜まり、弾が貫通するようになる。", "敵である森の動物たちや、その弾に触れるとHPが1減る。HPが0になるとゲームオーバー。", "50秒経過でボス「大コオロギ」が出現。60秒以内にボスのHPを削り切ると勝利。時間切れまたはHP0で敗北。"], "controls": {"スマホ": "画面をスワイプまたはドラッグして機体を移動。", "PC": "矢印キーで機体を移動。"}, "cfg": {"mode": "3d", "w": 360, "h": 640, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script type="application/json" id="meta">{"id": "20261127-130007-local-llm", "title": "もりのこおろぎ", "summary": "森を横断する正統派シューティング。スワイプで機体を動かし、動物たちを撃ってボス「大コオロギ」を倒そう。", "rules": ["画面をスワイプ（またはドラッグ、タップ）して、左側の自機「きつねのロケット」を上下左右に移動する。", "自機は常に前方（右側）へ自動で射撃を行う。連続で敵を撃破するとコンボが溜まり、弾が貫通するようになる。", "敵である森の動物たちや、その弾に触れるとHPが1減る。HPが0になるとゲームオーバー。", "50秒経過でボス「大コオロギ」が出現。ボス出現後10秒以内にボスのHPを削り切ると勝利。時間切れ（合計60秒経過）またはHP0で敗北。"], "controls": {"スマホ": "画面をスワイプまたはドラッグして機体を移動。タップするとタップした位置へ機体が移動する。", "PC": "矢印キーで機体を移動。クリックでクリックした位置へ機体が移動する。"}, "cfg": {"mode": "3d", "w": 360, "h": 640, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
 <script type="module">
 import * as THREE from "three";
 "use strict";
@@ -794,6 +794,7 @@ const Game = {
     antennaR.rotation.z = 0.45;
     g.add(body, belly, head, eyeL, eyeR, hornL, hornR, legL, legR, antennaL, antennaR);
     g.visible = false;
+    g.rotation.set(0, Math.PI, 0);
     g.userData.head = head;
     g.userData.body = body;
     g.userData.x = 6.8;
@@ -951,7 +952,7 @@ const Game = {
 
     e.visible = true;
     e.position.set(6.4, 0, 0);
-    e.rotation.set(0, 0, 0);
+    e.rotation.set(0, Math.PI, 0);
     e.scale.setScalar(1);
 
     const speedMul = 1 + Math.min(0.55, this.t * 0.009);
@@ -989,6 +990,7 @@ const Game = {
     const g = this.boss.group;
     g.visible = true;
     g.position.set(6.8, 0, 0);
+    g.rotation.set(0, Math.PI, 0);
     g.scale.setScalar(1.15);
     g.userData.x = 6.8;
     g.userData.y = 0;
@@ -1121,6 +1123,18 @@ const Game = {
   },
 
   checkBulletHits() {
+    let bossHead = null;
+    let bossBody = null;
+
+    if (this.bossActive) {
+      const g = this.boss.group;
+      g.updateMatrixWorld(true);
+      this.boss.head.getWorldPosition(this._v1);
+      this.boss.body.getWorldPosition(this._v2);
+      bossHead = this._v1;
+      bossBody = this._v2;
+    }
+
     for (const b of this.playerBullets) {
       if (!b.visible) continue;
       let consumed = false;
@@ -1152,13 +1166,10 @@ const Game = {
       }
 
       if (!consumed && this.bossActive) {
-        const g = this.boss.group;
-        const head = this.boss.head;
-        const body = this.boss.body;
-        const hdx = head.position.x + g.position.x - b.position.x;
-        const hdy = head.position.y + g.position.y - b.position.y;
-        const bdx = body.position.x + g.position.x - b.position.x;
-        const bdy = body.position.y + g.position.y - b.position.y;
+        const hdx = bossHead.x - b.position.x;
+        const hdy = bossHead.y - b.position.y;
+        const bdx = bossBody.x - b.position.x;
+        const bdy = bossBody.y - b.position.y;
         const hitHead = hdx * hdx + hdy * hdy < 0.95 * 0.95;
         const hitBody = bdx * bdx + bdy * bdy < 1.75 * 1.75;
         if (hitHead || hitBody) {
