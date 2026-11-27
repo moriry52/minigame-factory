@@ -69,7 +69,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261127-122822-local-llm", "title": "もりのりゅうせき", "summary": "パステル調の森を横断し、動物たちを撃ってボスの竜を倒す。ドラッグで機体を操作し、タップで射撃するシンプルながら緊張感のある1分間シューティング。", "rules": ["画面をドラッグ（指を置いたまま動かす）で機体を移動、タップで画面中央方向に弾を発射。", "敵の動物を撃破するとスコアが加算。自機に当たるとHPが減る。", "HPが0になるとゲームオーバー。制限時間60秒以内にボスを撃破。", "ボス出現時、自機の移動速度が30%低下する（ペナルティ）。", "撃破した敵から落ちる「葉っぱ」を拾うと、3秒間攻撃力UP（2連射）。"], "controls": {"スマホ": "画面をドラッグするとその方向に機体が移動します。画面をタップすると、その位置に向かって弾を発射します。", "PC": "矢印キーで上下左右に移動。マウスクリックで画面中央に、スペースキーでマウスカーソルの位置に弾を発射します。"}, "cfg": {"mode": "2d", "w": 640, "h": 360, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script type="application/json" id="meta">{"id": "20261127-122822-local-llm", "title": "もりのりゅうせき", "summary": "パステル調の森を横断し、動物たちを撃ってボスの竜を倒す。ドラッグで機体を操作し、タップで射撃するシンプルながら緊張感のある1分間シューティング。", "rules": ["画面をドラッグ（指を置いたまま動かす）で機体を移動、タップで画面中央方向に弾を発射。", "敵の動物を撃破するとスコアが加算。自機に当たるとHPが減る。", "HPが0になるとゲームオーバー。制限時間60秒以内にボスを撃破。", "ボス出現時、自機の移動速度が30%低下する（ペナルティ）。", "撃破した敵から落ちる「葉っぱ」を拾うと、3秒間攻撃力UP（2連射）。"], "controls": {"スマホ": "画面をドラッグするとその方向に機体が移動します。画面をタップすると、その位置に向かって弾を発射します。", "PC": "矢印キーで上下左右に移動。マウスクリックでクリック位置に、スペースキーで画面中央に弾を発射します。"}, "cfg": {"mode": "2d", "w": 640, "h": 360, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
 <script >
 "use strict";
 // ============================================================
@@ -644,7 +644,7 @@ const Game = {
     for (const tr of this.trees) {
       tr.x -= 52 * dt;
       if (tr.x < -70) {
-        tr.x = this.W + U_rand(this) + 40;
+        tr.x = this.W + this.api.util.rand(0, 60) + 40;
         tr.s = this.api.util.rand(0.8, 1.25);
         tr.col = this.api.util.choice(['#A5D6A7', '#81C784', '#C5E1A5', '#AED581']);
       }
@@ -801,6 +801,7 @@ const Game = {
       const a = base + k * 0.22;
       this.ebullets.push({ x: b.x - 20, y: b.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 5 });
     }
+    if (this.ebullets.length > 120) this.ebullets.splice(0, this.ebullets.length - 120);
     this.api.sound.tone(220, 0.1, 'square', 0.05, 120);
   },
 
@@ -812,6 +813,7 @@ const Game = {
       const a = (k / n) * Math.PI * 2 + off;
       this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 130, vy: Math.sin(a) * 130, r: 5 });
     }
+    if (this.ebullets.length > 120) this.ebullets.splice(0, this.ebullets.length - 120);
     this.ring(b.x, b.y, 70, '#F48FB1');
     this.shake = 8;
     this.api.sound.tone(120, 0.3, 'sawtooth', 0.12, 60);
@@ -1479,8 +1481,9 @@ const Game = {
     ctx.fillText('SCORE ' + this.api.score, this.W - 12, 20);
     // ボスHPバー
     const b = this.boss;
+    const by2 = 34;
     if (b && !b.dying) {
-      const bw2 = 200, bx2 = this.W / 2 - bw2 / 2, by2 = 34;
+      const bw2 = 200, bx2 = this.W / 2 - bw2 / 2;
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#AD1457';
@@ -1667,10 +1670,6 @@ const Game = {
     ctx.restore();
   }
 };
-
-function U_rand(g) {
-  return g.api.util.rand(0, 60);
-}
 // ===== ここまで =====
 __boot(typeof Game !== "undefined" ? Game : null);
 </script>
