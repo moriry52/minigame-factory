@@ -69,7 +69,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261127-084910-local-llm", "title": "森のしっぽスター", "summary": "パステルカラーの絵本風世界で、動物たちを撃ち抜いて森を守る正統派シューティング。自機は自動移動だが、攻撃はプレイヤーの手で行う。", "rules": ["自機は自動で右へ移動し、スワイプで上下に動きます。", "画面をタップ（またはクリック）すると、自機が前方にショットを発射します。", "敵動物を撃墜すると「しっぽ」が落ちてきます。", "「しっぽ」を自機で受け取ると、ボスの弱点（しっぽ）が1つ破壊されます。", "1分以内にボスの「しっぽ」をすべて破壊して撃破しましょう。"], "controls": {"スマホ": "画面を上下にスワイプして移動。画面をタップすると前方にショットを発射。", "PC": "矢印キーで上下移動、スペースキーまたはクリックで前方にショットを発射。"}, "cfg": {"mode": "2d", "w": 640, "h": 360, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script type="application/json" id="meta">{"id": "20261127-084910-local-llm", "title": "森のしっぽスター", "summary": "パステルカラーの絵本風世界で、動物たちを撃ち抜いて森を守る正統派シューティング。自機は自動移動だが、攻撃はプレイヤーの手で行う。", "rules": ["自機は画面左側に位置し、ドラッグ（または矢印キー）で上下に動きます。", "画面をタップ（またはクリック、スペースキー）すると、自機が前方にショットを発射します。", "敵動物を撃墜すると「ハート」型のアイテムが落ちてきます。", "「ハート」を自機で受け取ると、ボスの弱点（しっぽ）が1つ破壊されます。", "1分以内にボスの「しっぽ」をすべて破壊して撃破しましょう。"], "controls": {"スマホ": "画面をドラッグして上下移動。画面をタップすると前方にショットを発射。", "PC": "矢印キーで上下移動、スペースキーまたはクリックで前方にショットを発射。"}, "cfg": {"mode": "2d", "w": 640, "h": 360, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "A"}]}}</script>
 <script >
 "use strict";
 // ============================================================
@@ -455,6 +455,34 @@ function __frame(now) {
     if (!Number.isFinite(__G.score)) throw new Error("score が数値ではありません");
   } catch (e) { __fail("update/draw", e); }
 }
+// 自動テスト用：ゲーム内の経過時間（api.time）を進める。時間で出てくるボスや終盤の展開を、すぐ確かめるため。
+// adjust（{"t": 30, "state.timeLeft": -30} など）で、ゲームが自分で数えている時計も一緒に進められる
+__G.warp = function (sec, adjust) {
+  if (__G.state !== "playing") return null;
+  api.time += Math.max(0, +sec || 0);
+  for (const path in adjust || {}) {
+    const [a, b] = path.split(".");
+    const o = b ? GAME[a] : GAME, key = b || a;
+    if (o && typeof o[key] === "number") o[key] += +adjust[path] || 0;
+  }
+  return api.time;
+};
+// 自動テスト用：Game の数値の項目（1 段下のふつうのオブジェクトの中も）を集める。自分で数えている時計を見つけるため
+__G.clockFields = function () {
+  const out = { __time: api.time };
+  if (!GAME) return out;
+  for (const k of Object.keys(GAME).slice(0, 200)) {
+    const v = GAME[k];
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    else if (v && typeof v === "object" && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype && v !== api) {
+      for (const k2 of Object.keys(v).slice(0, 40)) {
+        const v2 = v[k2];
+        if (typeof v2 === "number" && Number.isFinite(v2)) out[k + "." + k2] = v2;
+      }
+    }
+  }
+  return out;
+};
 // 自動テスト用：ゲームの状態（Game の変数）を短い文字列に要約する。操作したときとしないときの違いを比べるのに使う
 __G.peek = function () {
   const seen = new WeakSet(); let n = 0;
@@ -504,7 +532,7 @@ const Game = {
     this.W = Number.isFinite(api.W) ? api.W : 640;
     this.H = Number.isFinite(api.H) ? api.H : 360;
 
-    this.P = { x: 96, y: this.H / 2, vy: 0, hp: 3, maxHp: 3, inv: 0, cd: 0, wing: 0, r: 13 };
+    this.P = { x: 96, y: this.H / 2, hp: 3, maxHp: 3, inv: 0, cd: 0, wing: 0, r: 13 };
     this.bullets = [];
     this.ebullets = [];
     this.enemies = [];
@@ -535,7 +563,6 @@ const Game = {
     this.spawnT = 1.0;
     this.shake = 0;
     this.scroll = 0;
-    this.lastSw = null;
 
     this.clouds = [];
     this.farTrees = [];
@@ -809,22 +836,16 @@ const Game = {
     if (api.input.up) kv = -1;
     if (api.input.down) kv = 1;
     if (kv !== 0) {
-      P.vy = api.util.lerp(P.vy, kv * 300, 1 - Math.pow(0.0001, dt));
-    } else {
-      P.vy *= Math.pow(0.02, dt);
-    }
-    P.y += P.vy * dt;
-
-    if (api.input.pointer && api.input.pointer.down) {
-      const dy = Number(api.input.pointer.dy);
-      if (Number.isFinite(dy)) P.y += dy * 1.05;
+      P.y += kv * 300 * dt;
     }
 
-    if (api.input.swipe && api.input.swipe !== this.lastSw) {
-      if (api.input.swipe === 'up') P.vy = -280;
-      if (api.input.swipe === 'down') P.vy = 280;
+    const ptr = api.input.pointer;
+    if (ptr && ptr.down) {
+      const dy = Number(ptr.dy);
+      if (Number.isFinite(dy)) {
+        P.y += dy * 1.05;
+      }
     }
-    this.lastSw = api.input.swipe || null;
 
     P.y = api.util.clamp(P.y, 46, this.H - 30);
 
