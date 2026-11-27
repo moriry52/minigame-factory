@@ -69,7 +69,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261127-130007-local-llm", "title": "もりのこおろぎ", "summary": "森を横断する正統派シューティング。スワイプで機体を動かし、動物たちを撃ってボス「大コオロギ」を倒そう。", "rules": ["画面をスワイプ（またはドラッグ、タップ）して、左側の自機「きつねのロケット」を上下左右に移動する。", "自機は常に前方（右側）へ自動で射撃を行う。連続で敵を撃破するとコンボが溜まり、弾が貫通するようになる。", "敵である森の動物たちや、その弾に触れるとHPが1減る。HPが0になるとゲームオーバー。", "50秒経過でボス「大コオロギ」が出現。ボス出現後10秒以内にボスのHPを削り切ると勝利。時間切れ（合計60秒経過）またはHP0で敗北。"], "controls": {"スマホ": "画面をスワイプまたはドラッグして機体を移動。タップするとタップした位置へ機体が移動する。", "PC": "矢印キーで機体を移動。クリックでクリックした位置へ機体が移動する。"}, "cfg": {"mode": "3d", "w": 360, "h": 640, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script type="application/json" id="meta">{"id": "20261127-130007-local-llm", "title": "もりのこおろぎ", "summary": "森を横断する正統派シューティング。スワイプで機体を動かし、動物たちを撃ってボス「大コオロギ」を倒そう。", "rules": ["画面をスワイプ（またはドラッグ、タップ）して、左側の自機「きつねのロケット」を上下左右に移動する。", "自機は常に前方（右側）へ自動で射撃を行う。連続で敵を撃破するとコンボが溜まり、弾が貫通するようになる。", "敵である森の動物たちや、その弾に触れるとHPが1減る。HPが0になるとゲームオーバー。", "50秒経過でボス「大コオロギ」が出現。合計60秒経過する前にボスのHPを削り切ると勝利。合計60秒経過またはHP0で敗北。"], "controls": {"スマホ": "画面をスワイプまたはドラッグして機体を移動。タップするとタップした位置へ機体が移動する。", "PC": "矢印キーで機体を移動。クリックでクリックした位置へ機体が移動する。"}, "cfg": {"mode": "3d", "w": 360, "h": 640, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
 <script type="module">
 import * as THREE from "three";
 "use strict";
@@ -456,8 +456,34 @@ function __frame(now) {
     if (!Number.isFinite(__G.score)) throw new Error("score が数値ではありません");
   } catch (e) { __fail("update/draw", e); }
 }
-// 自動テスト用：ゲーム内の経過時間（api.time）を進める。時間で出てくるボスや終盤の展開を、すぐ確かめるため
-__G.warp = function (sec) { if (__G.state === "playing") api.time += Math.max(0, +sec || 0); return api.time; };
+// 自動テスト用：ゲーム内の経過時間（api.time）を進める。時間で出てくるボスや終盤の展開を、すぐ確かめるため。
+// adjust（{"t": 30, "state.timeLeft": -30} など）で、ゲームが自分で数えている時計も一緒に進められる
+__G.warp = function (sec, adjust) {
+  if (__G.state !== "playing") return null;
+  api.time += Math.max(0, +sec || 0);
+  for (const path in adjust || {}) {
+    const [a, b] = path.split(".");
+    const o = b ? GAME[a] : GAME, key = b || a;
+    if (o && typeof o[key] === "number") o[key] += +adjust[path] || 0;
+  }
+  return api.time;
+};
+// 自動テスト用：Game の数値の項目（1 段下のふつうのオブジェクトの中も）を集める。自分で数えている時計を見つけるため
+__G.clockFields = function () {
+  const out = { __time: api.time };
+  if (!GAME) return out;
+  for (const k of Object.keys(GAME).slice(0, 200)) {
+    const v = GAME[k];
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    else if (v && typeof v === "object" && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype && v !== api) {
+      for (const k2 of Object.keys(v).slice(0, 40)) {
+        const v2 = v[k2];
+        if (typeof v2 === "number" && Number.isFinite(v2)) out[k + "." + k2] = v2;
+      }
+    }
+  }
+  return out;
+};
 // 自動テスト用：ゲームの状態（Game の変数）を短い文字列に要約する。操作したときとしないときの違いを比べるのに使う
 __G.peek = function () {
   const seen = new WeakSet(); let n = 0;
@@ -525,6 +551,7 @@ const Game = {
     this._v2 = new THREE.Vector3();
     this._v3 = new THREE.Vector3();
     this.audioCtx = null;
+    this.sparkCursor = 0;
 
     this.camera.fov = 72;
     this.camera.near = 0.1;
@@ -557,7 +584,12 @@ const Game = {
       blue: new THREE.MeshStandardMaterial({ color: 0xB3E5FC, roughness: 0.55, emissive: 0x81D4FA, emissiveIntensity: 0.18 }),
       boss: new THREE.MeshStandardMaterial({ color: 0xAED581, roughness: 0.68 }),
       bossDark: new THREE.MeshStandardMaterial({ color: 0x9CCC65, roughness: 0.72 }),
-      bossEye: new THREE.MeshStandardMaterial({ color: 0xFFF9C4, roughness: 0.4, emissive: 0xFFF176, emissiveIntensity: 0.35 })
+      bossEye: new THREE.MeshStandardMaterial({ color: 0xFFF9C4, roughness: 0.4, emissive: 0xFFF176, emissiveIntensity: 0.35 }),
+      spark: new THREE.MeshStandardMaterial({ color: 0xFFF9C4, roughness: 0.3, metalness: 0.05, emissive: 0xFFD54F, emissiveIntensity: 1.0 }),
+      sparkPink: new THREE.MeshStandardMaterial({ color: 0xF8BBD0, roughness: 0.3, metalness: 0.05, emissive: 0xF48FB1, emissiveIntensity: 0.85 }),
+      sparkOrange: new THREE.MeshStandardMaterial({ color: 0xFFE0B2, roughness: 0.3, metalness: 0.05, emissive: 0xFFB74D, emissiveIntensity: 0.85 }),
+      sparkGray: new THREE.MeshStandardMaterial({ color: 0xECEFF1, roughness: 0.3, metalness: 0.05, emissive: 0xB0BEC5, emissiveIntensity: 0.6 }),
+      sparkGreen: new THREE.MeshStandardMaterial({ color: 0xDCE775, roughness: 0.3, metalness: 0.05, emissive: 0xAED581, emissiveIntensity: 0.9 })
     };
 
     this.geo = {
@@ -630,6 +662,8 @@ const Game = {
     this.boss = this.buildBoss();
     this.boss.userData = this.boss.group.userData;
     this.scene.add(this.boss.group);
+
+    this.sparkPool = this.makePool(90, () => new THREE.Mesh(this.geo.sphereTiny, this.mat.spark));
 
     this.score = api.score || 0;
   },
@@ -831,14 +865,14 @@ const Game = {
       this.targetPos.y = p.y;
     }
 
-    this.targetPos.x = THREE.MathUtils.clamp(this.targetPos.x, -3.6, 2.4);
-    this.targetPos.y = THREE.MathUtils.clamp(this.targetPos.y, -3.4, 3.4);
+    this.targetPos.x = this.THREE.MathUtils.clamp(this.targetPos.x, -3.6, 2.4);
+    this.targetPos.y = this.THREE.MathUtils.clamp(this.targetPos.y, -3.4, 3.4);
     this.targetPos.z = 0;
 
     const smooth = 1 - Math.exp(-12 * dt);
     this.playerPos.lerp(this.targetPos, smooth);
     this.player.position.copy(this.playerPos);
-    this.player.rotation.z = THREE.MathUtils.clamp((this.targetPos.y - this.playerPos.y) * 0.18, -0.28, 0.28);
+    this.player.rotation.z = this.THREE.MathUtils.clamp((this.targetPos.y - this.playerPos.y) * 0.18, -0.28, 0.28);
 
     const flame = this.player.userData.flame;
     if (flame) {
@@ -889,6 +923,7 @@ const Game = {
     this.updateEnemies(dt);
     this.updateBoss(dt);
     this.collide();
+    this.updateSparks(dt);
 
     if (this.ended) return;
 
@@ -982,6 +1017,7 @@ const Game = {
       e.userData.shootTimer = 0.6 + Math.random() * 0.8;
     }
     e.userData.baseY = e.position.y;
+    e.userData.hitScale = 1;
   },
 
   startBoss() {
@@ -1040,6 +1076,16 @@ const Game = {
           }
         }
         e.rotation.z = Math.sin(e.userData.phase) * 0.12;
+
+        let hs = e.userData.hitScale || 1;
+        if (hs > 1.001) {
+          hs = Math.max(1, hs - 4.0 * dt);
+          e.userData.hitScale = hs;
+          e.scale.setScalar(hs);
+        } else if (hs !== 1) {
+          e.userData.hitScale = 1;
+          e.scale.setScalar(1);
+        }
 
         if (e.position.x < -7.2 || e.position.y < -5.8 || e.position.y > 5.8) {
           e.visible = false;
@@ -1152,8 +1198,11 @@ const Game = {
               this.combo += 1;
               this.addScore(10);
               this.playTone(360 + Math.min(520, this.combo * 18), 0.08, 'sine', 0.045);
+              this.spawnHitEffect(e.position.x, e.position.y, true, this.sparkMatForType(e.userData.type));
             } else {
+              e.userData.hitScale = 1.18;
               this.playTone(520, 0.035, 'triangle', 0.02);
+              this.spawnHitEffect(b.position.x, b.position.y, false, this.sparkMatForType(e.userData.type));
             }
             if (b.userData.pierce <= 0) {
               b.visible = false;
@@ -1177,6 +1226,7 @@ const Game = {
           this.bossHp -= dmg;
           b.userData.pierce -= 1;
           this.playTone(hitHead ? 620 : 430, 0.045, 'triangle', 0.03);
+          this.spawnHitEffect(b.position.x, b.position.y, hitHead, this.mat.sparkGreen);
           if (this.bossHp <= 0) {
             this.winGame();
             return;
@@ -1187,6 +1237,65 @@ const Game = {
         }
       }
     }
+  },
+
+  spawnHitEffect(x, y, big, mat) {
+    const count = big ? 12 : 6;
+    const len = this.sparkPool.length;
+    for (let i = 0; i < count; i++) {
+      let s = null;
+      for (let j = 0; j < len; j++) {
+        this.sparkCursor = (this.sparkCursor + 1) % len;
+        const cand = this.sparkPool[this.sparkCursor];
+        if (!cand.visible) {
+          s = cand;
+          break;
+        }
+      }
+      if (!s) break;
+
+      s.visible = true;
+      s.position.set(
+        x + (Math.random() - 0.5) * (big ? 0.35 : 0.22),
+        y + (Math.random() - 0.5) * (big ? 0.35 : 0.22),
+        0
+      );
+
+      const a = Math.random() * Math.PI * 2;
+      const sp = (big ? 2.8 : 1.9) * (0.45 + Math.random() * 0.9);
+      s.userData.vx = Math.cos(a) * sp;
+      s.userData.vy = Math.sin(a) * sp;
+      s.userData.life = (big ? 0.42 : 0.3) + Math.random() * 0.18;
+      s.userData.maxLife = s.userData.life;
+      s.userData.baseScale = (big ? 1.7 : 1.05) + Math.random() * (big ? 1.4 : 0.9);
+      s.material = mat || this.mat.spark;
+    }
+  },
+
+  updateSparks(dt) {
+    for (const s of this.sparkPool) {
+      if (!s.visible) continue;
+      const ud = s.userData;
+      ud.life -= dt;
+      if (ud.life <= 0) {
+        s.visible = false;
+        continue;
+      }
+
+      s.position.x += ud.vx * dt;
+      s.position.y += ud.vy * dt;
+
+      const k = ud.life / ud.maxLife;
+      const sc = ud.baseScale * (0.35 + 0.65 * k);
+      s.scale.setScalar(Math.max(0.02, sc));
+    }
+  },
+
+  sparkMatForType(type) {
+    if (type === 'rabbit') return this.mat.sparkPink;
+    if (type === 'squirrel') return this.mat.sparkOrange;
+    if (type === 'muntjac') return this.mat.sparkGray;
+    return this.mat.spark;
   },
 
   damagePlayer() {
@@ -1201,7 +1310,11 @@ const Game = {
     if (this.ended) return;
     this.ended = true;
     this.bossActive = false;
-    this.boss.group.visible = false;
+    const g = this.boss.group;
+    this.spawnHitEffect(g.position.x, g.position.y, true, this.mat.sparkGreen);
+    this.spawnHitEffect(g.position.x - 0.8, g.position.y + 0.6, true, this.mat.spark);
+    this.spawnHitEffect(g.position.x - 0.8, g.position.y - 0.6, true, this.mat.spark);
+    g.visible = false;
     const bonus = 1000 + Math.max(0, this.hp) * 100;
     this.addScore(bonus);
     this.playTone(660, 0.12, 'triangle', 0.05);
