@@ -69,7 +69,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261127-130007-local-llm", "title": "もりのこおろぎ", "summary": "森を横断する正統派シューティング。スワイプで機体を動かし、動物たちを撃ってボス「大コオロギ」を倒そう。", "rules": ["画面をスワイプ（またはドラッグ）して、左側の自機「きつねのロケット」を上下左右に移動する。", "自機は常に前方（右側）へ自動で射撃を行う。連射速度は一定だが、連続で敵を撃破すると弾が貫通するようになる。", "敵である森の動物たちや、その弾に触れるとHPが1減る。HPが0になるとゲームオーバー。", "60秒以内にボスのHPを削り切ると勝利。時間切れまたはHP0で敗北。", "道中の敵を撃破するとスコアが増え、コンボ数が溜まると弾の威力が上がる。"], "controls": {"スマホ": "画面をスワイプまたはドラッグして機体を移動。", "PC": "矢印キーで機体を移動、クリックで一時停止/再開（必要に応じて）。"}, "cfg": {"mode": "3d", "w": 360, "h": 640, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
+<script type="application/json" id="meta">{"id": "20261127-130007-local-llm", "title": "もりのこおろぎ", "summary": "森を横断する正統派シューティング。スワイプで機体を動かし、動物たちを撃ってボス「大コオロギ」を倒そう。", "rules": ["画面をスワイプ（またはドラッグ）して、左側の自機「きつねのロケット」を上下左右に移動する。", "自機は常に前方（右側）へ自動で射撃を行う。連続で敵を撃破するとコンボが溜まり、弾が貫通するようになる。", "敵である森の動物たちや、その弾に触れるとHPが1減る。HPが0になるとゲームオーバー。", "50秒経過でボス「大コオロギ」が出現。60秒以内にボスのHPを削り切ると勝利。時間切れまたはHP0で敗北。"], "controls": {"スマホ": "画面をスワイプまたはドラッグして機体を移動。", "PC": "矢印キーで機体を移動。"}, "cfg": {"mode": "3d", "w": 360, "h": 640, "scheme": "タップ/スワイプ", "buttons": [{"key": "A", "label": "A"}]}}</script>
 <script type="module">
 import * as THREE from "three";
 "use strict";
@@ -628,6 +628,7 @@ const Game = {
     };
 
     this.boss = this.buildBoss();
+    this.boss.userData = this.boss.group.userData;
     this.scene.add(this.boss.group);
 
     this.score = api.score || 0;
@@ -795,6 +796,10 @@ const Game = {
     g.visible = false;
     g.userData.head = head;
     g.userData.body = body;
+    g.userData.x = 6.8;
+    g.userData.y = 0;
+    g.userData.shootTimer = 1.1;
+    g.userData.entering = true;
     return { group: g, head: head, body: body };
   },
 
@@ -884,6 +889,8 @@ const Game = {
     this.updateBoss(dt);
     this.collide();
 
+    if (this.ended) return;
+
     const score = (this.api.score !== undefined ? this.api.score : this.score) || 0;
     const hearts = '♥'.repeat(Math.max(0, this.hp)) + '♡'.repeat(Math.max(0, 3 - this.hp));
     const timeLeft = Math.max(0, Math.ceil(60 - this.t));
@@ -897,7 +904,7 @@ const Game = {
     if (this.hp <= 0) {
       this.ended = true;
       this.api.gameOver();
-    } else if (this.t >= 60 && !this.bossActive) {
+    } else if (this.t >= 60) {
       this.ended = true;
       this.api.gameOver();
     }
@@ -979,13 +986,14 @@ const Game = {
   startBoss() {
     this.bossActive = true;
     this.bossHp = this.bossMaxHp;
-    this.boss.group.visible = true;
-    this.boss.group.position.set(6.8, 0, 0);
-    this.boss.group.scale.setScalar(1.15);
-    this.boss.userData.x = 6.8;
-    this.boss.userData.y = 0;
-    this.boss.userData.shootTimer = 1.1;
-    this.boss.userData.entering = true;
+    const g = this.boss.group;
+    g.visible = true;
+    g.position.set(6.8, 0, 0);
+    g.scale.setScalar(1.15);
+    g.userData.x = 6.8;
+    g.userData.y = 0;
+    g.userData.shootTimer = 1.1;
+    g.userData.entering = true;
     this.playTone(70, 0.28, 'sine', 0.08);
     this.playTone(110, 0.18, 'triangle', 0.04);
   },
@@ -1079,6 +1087,7 @@ const Game = {
     }
 
     this.checkBulletHits();
+    if (this.ended) return;
 
     for (const type in this.enemyPools) {
       for (const e of this.enemyPools[type]) {
@@ -1197,7 +1206,7 @@ const Game = {
       const cur = (this.api.score !== undefined ? this.api.score : this.score) || 0;
       this.api.setScore(cur + n);
     }
-    this.score = (this.api.score !== undefined ? this.api.score : this.score) + n;
+    this.score = (this.api.score !== undefined ? this.api.score : this.score) || 0;
   },
 
   ensureAudio() {
