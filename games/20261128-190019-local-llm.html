@@ -85,7 +85,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261128-190019-local-llm", "title": "森のしっぽ大決戦：レベルで変わる戦い方", "summary": "森の動物を操り、敵を撃ってレベルアップ。レベルごとに攻撃方法が変わり、3分でボス「大カブトムシ」を撃破せよ！", "rules": ["左下の仮想パッドで全方向に動き、右下のAボタンで攻撃する。", "敵を倒すと経験値（ドングリ）をゲット。レベルが上がると【攻撃パターン】が変わる。", "Lv1: 単発ショット。Lv2: 3連射。Lv3: 貫通ビーム（直線に貫通）。Lv4: 広角バースト（周囲に爆発）。", "敵や敵の弾に当たるとHPが減る。HPが0になるとゲームオーバー。", "3分以内にマップ奥のボス「大カブトムシ」を倒して勝利！", "レベルアップ時は短時間無敵になり、新しい攻撃パターンに切り替わる。"], "controls": {"スマホ": "画面左下の仮想パッドを指でなぞって全方向に移動し、右下のAボタンを押して敵を撃つ。", "PC": "矢印キーで全方向に移動し、Zキー（またはAボタン）で敵を撃つ。"}, "cfg": {"mode": "2d", "w": 480, "h": 480, "scheme": "仮想パッド", "buttons": [{"key": "A", "label": "攻撃"}]}, "ui": {"pad": "floating", "guide": true, "bg": "light"}}</script>
+<script type="application/json" id="meta">{"id": "20261128-190019-local-llm", "title": "森のしっぽ大決戦：レベルで変わる戦い方", "summary": "森の動物を操り、敵を撃ってレベルアップ。レベルごとに攻撃方法が変わり、3分でボス「大カブトムシ」を撃破せよ！", "rules": ["画面左下の仮想パッドで全方向に動き、右下のAボタンで攻撃する。", "敵を倒すと経験値（ドングリ）をゲット。レベルが上がると【攻撃パターン】が変わる。", "Lv1: 単発ショット。Lv2: 3発同時発射（3方向に弾を撃つ）。Lv3: 貫通ビーム（直線に貫通）。Lv4: 広角バースト（周囲に8方向射撃）。", "敵や敵の弾に当たるとHPが減る。HPが0になるとゲームオーバー。", "3分以内にマップ奥のボス「大カブトムシ」を倒して勝利！", "レベルアップ時は短時間無敵になり、新しい攻撃パターンに切り替わる。"], "controls": {"スマホ": "画面左半分を指でなぞって全方向に移動し、右下のAボタンを押して敵を撃つ。", "PC": "矢印キーで全方向に移動し、Zキーで敵を撃つ。"}, "cfg": {"mode": "2d", "w": 480, "h": 480, "scheme": "仮想パッド", "buttons": [{"key": "A", "label": "攻撃"}]}, "ui": {"pad": "floating", "guide": true, "bg": "light"}}</script>
 <script >
 "use strict";
 // ============================================================
@@ -739,10 +739,22 @@ const Game = {
     else if (side === 2) { x = b.x0 - 20; y = u.rand(b.y0 + 10, b.y1 - 10); }
     else { x = b.x1 + 20; y = u.rand(b.y0 + 10, b.y1 - 10); }
     const type = this.t < 25 ? (u.rand() < 0.7 ? 'frog' : 'crow') : (u.rand() < 0.45 ? 'frog' : u.rand() < 0.6 ? 'crow' : 'beetle');
-    const e = { id: this.eid++, type, x, y, r: 13, hp: 2, flash: 0, seed: u.rand(0, 6.28) };
-    if (type === 'frog') { e.r = 13; e.hp = 2; e.spd = 72 + this.t * 0.2; }
-    else if (type === 'crow') { e.r = 12; e.hp = 2; e.spd = 95; e.shoot = u.rand(1.2, 2.2); }
-    else { e.r = 15; e.hp = 6; e.spd = 52; e.shoot = u.rand(1.6, 2.6); }
+    const e = { id: this.eid++, type, x, y, r: 13, hp: 1, flash: 0, seed: u.rand(0, 6.28) };
+    if (type === 'frog') {
+      e.r = 13;
+      e.hp = 1;
+      e.spd = 62 + this.t * 0.12;
+    } else if (type === 'crow') {
+      e.r = 12;
+      e.hp = 1;
+      e.spd = 82;
+      e.shoot = u.rand(2.0, 3.0);
+    } else {
+      e.r = 15;
+      e.hp = 2;
+      e.spd = 46;
+      e.shoot = u.rand(2.4, 3.4);
+    }
     this.enemies.push(e);
   },
 
@@ -928,8 +940,13 @@ const Game = {
       if (!this.padBase) this.padBase = { x: api.input.pointer.x, y: api.input.pointer.y };
       const kx = api.input.pointer.x - this.padBase.x, ky = api.input.pointer.y - this.padBase.y;
       const kl = Math.hypot(kx, ky);
-      if (kl > 48) { this.padKnob.x = this.padBase.x + (kx / kl) * 48; this.padKnob.y = this.padBase.y + (ky / kl) * 48; }
-      else { this.padKnob.x = api.input.pointer.x; this.padKnob.y = api.input.pointer.y; }
+      if (kl > 48) {
+        this.padKnob.x = this.padBase.x + (kx / kl) * 48;
+        this.padKnob.y = this.padBase.y + (ky / kl) * 48;
+      } else {
+        this.padKnob.x = api.input.pointer.x;
+        this.padKnob.y = api.input.pointer.y;
+      }
     } else {
       this.padBase = null;
       this.padKnob.x += (95 - this.padKnob.x) * Math.min(1, dt * 12);
@@ -944,7 +961,7 @@ const Game = {
     if (!this.boss && this.bossWarn <= 0 && this.t < 90) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0 && this.enemies.length < 12) {
-        this.spawnTimer = (this.t < 60 ? 3.0 : 2.0) * u.rand(0.8, 1.2);
+        this.spawnTimer = (this.t < 60 ? 3.4 : 2.4) * u.rand(0.85, 1.2);
         this.spawnEnemy();
       }
     }
@@ -977,19 +994,22 @@ const Game = {
         e.y += Math.sin(ang) * e.spd * dir * dt + Math.sin(ang + Math.PI / 2) * Math.sin(this.t * 2 + e.seed) * 55 * dt;
         e.shoot -= dt;
         if (e.shoot <= 0) {
-          e.shoot = u.rand(1.8, 2.6);
-          const bs = 130 * (this.t >= 60 ? 1.5 : 1);
+          e.shoot = u.rand(2.0, 3.0);
+          const bs = 115 * (this.t >= 60 ? 1.35 : 1);
           this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * bs, vy: Math.sin(ang) * bs, r: 4.5, life: 3.5 });
           api.sound.tone(500, 0.06, 'square', 0.12, 380);
         }
       } else {
-        if (d > 135) { e.x += Math.cos(ang) * e.spd * dt; e.y += Math.sin(ang) * e.spd * dt; }
+        if (d > 135) {
+          e.x += Math.cos(ang) * e.spd * dt;
+          e.y += Math.sin(ang) * e.spd * dt;
+        }
         e.shoot -= dt;
         if (e.shoot <= 0 && d < 300) {
-          e.shoot = 2.6;
+          e.shoot = 3.0;
           for (let k = -1; k <= 1; k++) {
             const aa = ang + k * 0.22;
-            this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(aa) * 125, vy: Math.sin(aa) * 125, r: 5, life: 3.5 });
+            this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(aa) * 105, vy: Math.sin(aa) * 105, r: 5, life: 3.5 });
           }
           api.sound.tone(300, 0.08, 'square', 0.14, 220);
         }
@@ -997,7 +1017,7 @@ const Game = {
       e.x = u.clamp(e.x, b.x0 + 6, b.x1 - 6);
       e.y = u.clamp(e.y, b.y0 + 6, b.y1 - 6);
       if (p.invuln <= 0 && u.circleHit({ x: p.x, y: p.y, r: p.r }, { x: e.x, y: e.y, r: e.r })) {
-        this.hurtPlayer(e.type === 'beetle' ? 2 : dmgScale);
+        this.hurtPlayer(e.type === 'beetle' ? 1 : dmgScale);
       }
     }
 
@@ -1016,7 +1036,13 @@ const Game = {
         bo.bigCd -= dt;
         if (bo.bigType === 1) {
           bo.x += bo.chargeDir * 430 * dt;
-          if (bo.x < 60 || bo.x > 420) { bo.x = u.clamp(bo.x, 60, 420); bo.bigPhase = 0; bo.bigT = 10; bo.invuln = false; bo.baseX = u.clamp(bo.x, 140, 340); }
+          if (bo.x < 60 || bo.x > 420) {
+            bo.x = u.clamp(bo.x, 60, 420);
+            bo.bigPhase = 0;
+            bo.bigT = 10;
+            bo.invuln = false;
+            bo.baseX = u.clamp(bo.x, 140, 340);
+          }
         } else {
           bo.x = bo.baseX + Math.sin(bo.t * 0.9) * 90;
           if (bo.bigCd <= 0) { bo.bigPhase = 0; bo.bigT = 10; bo.invuln = false; }
@@ -1136,7 +1162,9 @@ const Game = {
         api.addScore(5);
         api.sound.play('coin');
         this.addParticles(p.x, p.y - 10, '#C8873A', 4, 90, 0.35);
-      } else if (aco.life <= 0) this.acorns.splice(i, 1);
+      } else if (aco.life <= 0) {
+        this.acorns.splice(i, 1);
+      }
     }
 
     this.updateFx(dt);
@@ -1228,7 +1256,7 @@ const Game = {
         ctx.fillStyle = col;
         ctx.beginPath(); ctx.arc(0, 0, e.r, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#1E6B1E'; ctx.lineWidth = 2.5; ctx.stroke();
-        ctx.fillStyle = e.flash > 0 ? '#FFFFFF' : '#FFFFFF';
+        ctx.fillStyle = '#FFFFFF';
         ctx.beginPath(); ctx.arc(-5, -e.r + 2, 4.5, 0, Math.PI * 2); ctx.arc(5, -e.r + 2, 4.5, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#1E6B1E'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(-5, -e.r + 2, 4.5, 0, Math.PI * 2); ctx.stroke();
@@ -1259,8 +1287,10 @@ const Game = {
         ctx.strokeStyle = '#4A2508'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(0, -e.r); ctx.lineTo(0, e.r); ctx.stroke();
         ctx.fillStyle = e.flash > 0 ? '#FFFFFF' : '#4A2508';
-        ctx.beginPath(); ctx.moveTo(-4, -e.r + 1); ctx.lineTo(-7, -e.r - 8); ctx.lineTo(-1, -e.r + 3); ctx.closePath();
-        ctx.moveTo(4, -e.r + 1); ctx.lineTo(7, -e.r - 8); ctx.lineTo(1, -e.r + 3); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-4, -e.r + 1); ctx.lineTo(-7, -e.r - 8); ctx.lineTo(-1, -e.r + 3); ctx.closePath();
+        ctx.moveTo(4, -e.r + 1); ctx.lineTo(7, -e.r - 8); ctx.lineTo(1, -e.r + 3); ctx.closePath();
+        ctx.fill();
         ctx.fillStyle = '#FFD700';
         ctx.beginPath(); ctx.arc(-6, -2, 2, 0, Math.PI * 2); ctx.arc(6, -2, 2, 0, Math.PI * 2); ctx.fill();
       }
@@ -1291,8 +1321,20 @@ const Game = {
       // 金の角
       ctx.fillStyle = bo.flash > 0 ? '#FFFFFF' : '#FFD700';
       ctx.strokeStyle = '#B8860B'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(-8, -bo.r + 6); ctx.quadraticCurveTo(-16, -bo.r - 22, -2, -bo.r - 30); ctx.quadraticCurveTo(-6, -bo.r - 12, -2, -bo.r + 4); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(8, -bo.r + 6); ctx.quadraticCurveTo(16, -bo.r - 22, 2, -bo.r - 30); ctx.quadraticCurveTo(6, -bo.r - 12, 2, -bo.r + 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-8, -bo.r + 6);
+      ctx.quadraticCurveTo(-16, -bo.r - 22, -2, -bo.r - 30);
+      ctx.quadraticCurveTo(-6, -bo.r - 12, -2, -bo.r + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(8, -bo.r + 6);
+      ctx.quadraticCurveTo(16, -bo.r - 22, 2, -bo.r - 30);
+      ctx.quadraticCurveTo(6, -bo.r - 12, 2, -bo.r + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
       // 目
       ctx.fillStyle = '#FF4500';
       ctx.beginPath(); ctx.arc(-10, -12, 4, 0, Math.PI * 2); ctx.arc(10, -12, 4, 0, Math.PI * 2); ctx.fill();
@@ -1353,10 +1395,22 @@ const Game = {
       ctx.beginPath(); ctx.arc(ix, iy, 7, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#000000'; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.fillStyle = '#FF8C00';
-      if (this.level === 1) { ctx.beginPath(); ctx.arc(ix, iy, 2.5, 0, Math.PI * 2); ctx.fill(); }
-      else if (this.level === 2) { ctx.beginPath(); ctx.arc(ix - 3, iy, 1.8, 0, Math.PI * 2); ctx.arc(ix, iy - 1, 1.8, 0, Math.PI * 2); ctx.arc(ix + 3, iy, 1.8, 0, Math.PI * 2); ctx.fill(); }
-      else if (this.level === 3) { ctx.fillRect(ix - 5, iy - 1.5, 10, 3); }
-      else { for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; ctx.beginPath(); ctx.arc(ix + Math.cos(a) * 4, iy + Math.sin(a) * 4, 1.4, 0, Math.PI * 2); ctx.fill(); } }
+      if (this.level === 1) {
+        ctx.beginPath(); ctx.arc(ix, iy, 2.5, 0, Math.PI * 2); ctx.fill();
+      } else if (this.level === 2) {
+        ctx.beginPath();
+        ctx.arc(ix - 3, iy, 1.8, 0, Math.PI * 2);
+        ctx.arc(ix, iy - 1, 1.8, 0, Math.PI * 2);
+        ctx.arc(ix + 3, iy, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (this.level === 3) {
+        ctx.fillRect(ix - 5, iy - 1.5, 10, 3);
+      } else {
+        for (let k = 0; k < 8; k++) {
+          const a = (k / 8) * Math.PI * 2;
+          ctx.beginPath(); ctx.arc(ix + Math.cos(a) * 4, iy + Math.sin(a) * 4, 1.4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
     }
 
     // ---- 自機弾 ----
@@ -1484,15 +1538,15 @@ const Game = {
     }
 
     // ================= 操作部 =================
-    // 仮想パッド
-    const pb = this.padBase || { x: 95, y: 400 };
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-    ctx.lineWidth = 3;
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath(); ctx.arc(pb.x, pb.y, 52, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    // 仮想パッド（1つだけ）
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.arc(this.padKnob.x, this.padKnob.y, 24, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(this.padKnob.x, this.padKnob.y, 34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
     // Aボタン
     const ab = { x: 400, y: 402, r: 34 };
     const aDown = api.input.a;
