@@ -69,7 +69,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261128-050010-local-llm", "title": "氷晶スライド", "summary": "自機は常に「白」の氷塊。同じ色同士は干渉しないため、敵氷塊の色に合わせて自機の色を瞬時に切り替え、貫通または回避を選択せよ。3分以内に「暖房コア」へ到達せよ。", "rules": ["仮想パッドで氷塊を縦スクロールする通路に滑り込ませる。", "自機は基本「白」だが、Aボタン（またはBボタン）で赤・青・緑のいずれかの色に瞬時（0.1秒）に切り替えられる。", "自機の色と敵氷塊の色が一致する場合、接触してもダメージを受けず貫通できる。", "自機の色と敵氷塊の色が異なる場合、接触するとダメージを受け、自機は元の「白」に戻る。", "HPが0になると凍結で即死。ステージの最下部にある「暖房コア」に到達すればクリア。", "3分以内にゴールに辿り着けない場合も、温度不足で凍結し失敗となる。"], "controls": {"スマホ": "画面下の十字キーで氷塊を移動。Aボタン（赤）で色を赤・青・緑・白の順に切り替え。Bボタン（青）で白に戻す。", "PC": "矢印キーで移動。Zキー（赤）で色を赤・青・緑・白の順に切り替え。Xキー（青）で白に戻す。"}, "cfg": {"mode": "2d", "w": 360, "h": 640, "scheme": "仮想パッド", "buttons": [{"key": "A", "label": "赤"}, {"key": "B", "label": "青"}]}}</script>
+<script type="application/json" id="meta">{"id": "20261128-050010-local-llm", "title": "氷晶スライド", "summary": "自機は常に「白」の氷塊。同じ色同士は干渉しないため、敵氷塊の色に合わせて自機の色を瞬時に切り替え、貫通または回避を選択せよ。3分以内に「暖房コア」へ到達せよ。", "rules": ["自機は基本「白」だが、タップで赤・青・緑・白の順に瞬時（0.1秒）に切り替えられる。", "自機の色と敵氷塊の色が一致する場合、接触してもダメージを受けず貫通できる。", "自機の色と敵氷塊の色が異なる場合、接触するとダメージを受け、自機は元の「白」に戻る。", "HPが0になると凍結で即死。ステージの最下部にある「暖房コア」に到達すればクリア。", "3分以内にゴールに辿り着けない場合も、温度不足で凍結し失敗となる。"], "controls": {"スマホ": "ドラッグで氷塊を移動。タップで色を赤・青・緑・白の順に切り替え。", "PC": "マウスのドラッグまたは矢印キーで移動。クリックで色を赤・青・緑・白の順に切り替え。"}, "cfg": {"mode": "2d", "w": 360, "h": 640, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "赤"}, {"key": "B", "label": "青"}]}}</script>
 <script >
 "use strict";
 // ============================================================
@@ -755,22 +755,16 @@ const Game = {
     }
 
     const inp = api.input;
-    if (inp.aPressed) {
+    const pt = inp.pointer || { down: false, dx: 0, dy: 0 };
+
+    if (inp.tap) {
       P.colorIndex = (P.colorIndex + 1) % 4;
       P.color = this.CNAMES[P.colorIndex];
       P.colorT = 0.1;
       api.sound.tone(880 + P.colorIndex * 110, 0.06, 'sine', 0.12, 1320 + P.colorIndex * 110);
       this.sparkle(P.x, P.y, this.CHEX[P.color]);
     }
-    if (inp.bPressed) {
-      if (P.colorIndex !== 0) {
-        P.colorIndex = 0;
-        P.color = 'white';
-        P.colorT = 0.1;
-        api.sound.tone(660, 0.06, 'sine', 0.12, 990);
-        this.sparkle(P.x, P.y, '#FFFFFF');
-      }
-    }
+
     if (P.colorT > 0) P.colorT -= dt;
     if (P.inv > 0) P.inv -= dt;
     if (P.flash > 0) P.flash -= dt;
@@ -778,8 +772,22 @@ const Game = {
     const mx = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
     const my = (inp.down ? 1 : 0) - (inp.up ? 1 : 0);
     const ms = 230;
-    P.x += mx * ms * dt;
-    P.y += my * ms * dt;
+
+    let dx = 0;
+    let dy = 0;
+    if (pt.down) {
+      dx = Number.isFinite(pt.dx) ? pt.dx : 0;
+      dy = Number.isFinite(pt.dy) ? pt.dy : 0;
+      const maxD = 30;
+      if (dx > maxD) dx = maxD;
+      if (dx < -maxD) dx = -maxD;
+      if (dy > maxD) dy = maxD;
+      if (dy < -maxD) dy = -maxD;
+    }
+
+    P.x += mx * ms * dt + dx;
+    P.y += my * ms * dt + dy;
+
     const m = P.r + 4;
     if (P.x < m) P.x = m;
     if (P.x > this.W - m) P.x = this.W - m;
@@ -1174,9 +1182,9 @@ const Game = {
         ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('A:色変換  B:白に戻す', W / 2, H - 140);
+        ctx.fillText('ドラッグ:移動 タップ:色変換', W / 2, H - 140);
         ctx.font = '12px sans-serif';
-        ctx.fillText('同じ色にすれば貫通できる!', W / 2, H - 122);
+        ctx.fillText('タップで 白→赤→青→緑', W / 2, H - 122);
         ctx.globalAlpha = 1;
       }
 
