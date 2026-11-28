@@ -85,7 +85,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261128-050010-local-llm", "title": "氷晶スライド", "summary": "自機は常に「白」の氷塊。同じ色同士は干渉しないため、敵氷塊の色に合わせて自機の色を瞬時に切り替え、貫通または回避を選択せよ。1分以内に「暖房コア」へ到達せよ。", "rules": ["自機は基本「白」だが、タップで赤・青・緑・白の順に瞬時（0.1秒）に切り替えられる。", "自機の色と敵氷塊の色が一致する場合、接触すると敵氷塊が破壊され、10点獲得できる。", "自機の色と敵氷塊の色が異なる場合、接触するとダメージを受け、自機は元の「白」に戻る。", "HPが0になると凍結で即死。ステージの最下部にある「暖房コア」に到達すればクリア。", "1分以内にゴールに辿り着けない場合も、温度不足で凍結し失敗となる。"], "controls": {"スマホ": "指を置いたまま動かす（ドラッグ）で氷塊を移動。タップで色を赤・青・緑・白の順に切り替え。", "PC": "マウスのドラッグまたは矢印キーで移動。クリックで色を赤・青・緑・白の順に切り替え。"}, "cfg": {"mode": "2d", "w": 360, "h": 640, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "赤"}, {"key": "B", "label": "青"}]}, "ui": {"pad": "floating", "guide": true, "bg": "light"}}</script>
+<script type="application/json" id="meta">{"id": "20261128-050010-local-llm", "title": "氷晶スライド", "summary": "自機は常に「白」の氷塊。同じ色同士は干渉しないため、敵氷塊の色に合わせて自機の色を瞬時に切り替え、貫通または回避を選択せよ。1分以内に「暖房コア」へ到達せよ。", "rules": ["自機は基本「白」だが、タップで赤・青・緑・白の順に瞬時（0.1秒）に切り替えられる。", "自機の色と敵氷塊の色が一致する場合、接触すると敵氷塊が破壊され、10点獲得できるとともにスクロール速度が上昇する。", "自機の色と敵氷塊の色が異なる場合、接触するとスクロール速度が低下し、自機は元の「白」に戻る。", "ステージの最下部にある「暖房コア」に到達すればクリア。1分以内にゴールに辿り着けない場合、温度不足で凍結し失敗となる。"], "controls": {"スマホ": "指を置いたまま動かす（ドラッグ）で氷塊を移動。タップで色を赤・青・緑・白の順に切り替え。", "PC": "マウスのドラッグまたは矢印キーで移動。クリックで色を赤・青・緑・白の順に切り替え。"}, "cfg": {"mode": "2d", "w": 360, "h": 640, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "赤"}, {"key": "B", "label": "青"}]}, "ui": {"pad": "floating", "guide": true, "bg": "light"}}</script>
 <script >
 "use strict";
 // ============================================================
@@ -696,19 +696,22 @@ const Game = {
     this.P = {
       x: this.W / 2, y: this.H - 150, r: 15,
       color: 'white', colorIndex: 0, colorT: 0,
-      hp: 3, maxHp: 3, inv: 0, flash: 0, trailT: 0
+      flash: 0, trailT: 0
     };
 
     this.blocks = [];
     this.parts = [];
+    this.floats = [];
     this.snow = [];
     this.core = null;
     this.coreSpawned = false;
     this.corePulse = 0;
 
     this.dist = 0;
-    this.STAGE_LEN = 6500;
+    this.STAGE_LEN = 8600;
     this.TIME_LIMIT = 60;
+
+    this.speedMod = 0;
 
     this.spawnT = 1.4;
     this.shake = 0;
@@ -736,8 +739,12 @@ const Game = {
     api.setScore(0);
   },
 
-  scrollSpeed() {
+  baseSpeed() {
     return this.api.time >= 40 ? 150 : 120;
+  },
+
+  curSpeed() {
+    return this.api.util.clamp(this.baseSpeed() + this.speedMod, 50, 260);
   },
 
   phase() {
@@ -780,6 +787,11 @@ const Game = {
     }
   },
 
+  addFloat(x, y, txt, c) {
+    if (this.floats.length > 12) return;
+    this.floats.push({ x, y, txt, c, life: 0.9, max: 0.9 });
+  },
+
   spawnRow() {
     const p = this.phase();
     const cols = ['red', 'blue', 'green'];
@@ -801,34 +813,21 @@ const Game = {
     if (this.blocks.length > 40) this.blocks.splice(0, this.blocks.length - 40);
   },
 
-  hitPlayer() {
+  hitWrong() {
     const P = this.P;
     const api = this.api;
-    if (P.inv > 0 || this.over || this.cleared) return;
+    if (this.over || this.cleared) return;
 
-    P.hp--;
-    P.inv = 1.3;
+    this.speedMod = Math.max(-90, this.speedMod - 70);
     P.color = 'white';
     P.colorIndex = 0;
     P.colorT = 0.1;
-    this.shake = 6;
+    this.shake = 5;
 
     api.sound.play('hurt');
     api.sound.tone(220, 0.15, 'sawtooth', 0.15, 90);
-    this.burst(P.x, P.y, '#B3E5FC', 14, 150, 0.5, 4);
-    this.burst(P.x, P.y, '#FFFFFF', 8, 100, 0.4, 3);
-
-    if (P.hp <= 0) {
-      P.hp = 0;
-      this.over = true;
-      this.endT = 0;
-      this.endPlayed = false;
-      this.burst(P.x, P.y, '#E1F5FE', 26, 180, 0.9, 5);
-      this.burst(P.x, P.y, '#81D4FA', 18, 140, 0.7, 4);
-      api.sound.play('over');
-      api.sound.tone(150, 0.6, 'sine', 0.2, 60);
-      api.gameOver();
-    }
+    this.burst(P.x, P.y, '#B3E5FC', 12, 140, 0.5, 4);
+    this.addFloat(P.x, P.y - 26, 'SLOW!', '#0288D1');
   },
 
   update(dt) {
@@ -862,7 +861,7 @@ const Game = {
 
     if (t >= 3 && !this.hintPlayed) {
       this.hintPlayed = true;
-      this.hintT = 3.0;
+      this.hintT = 4.0;
     }
 
     if (t >= this.TIME_LIMIT) {
@@ -877,7 +876,10 @@ const Game = {
       return;
     }
 
-    const spd = this.scrollSpeed();
+    if (this.speedMod > 0) this.speedMod = Math.max(0, this.speedMod - 30 * dt);
+    else if (this.speedMod < 0) this.speedMod = Math.min(0, this.speedMod + 30 * dt);
+
+    const spd = this.curSpeed();
     this.dist += spd * dt;
 
     if (!this.coreSpawned && this.STAGE_LEN - this.dist < 720) {
@@ -915,7 +917,6 @@ const Game = {
     }
 
     if (P.colorT > 0) P.colorT -= dt;
-    if (P.inv > 0) P.inv -= dt;
     if (P.flash > 0) P.flash -= dt;
 
     const mx = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
@@ -980,16 +981,18 @@ const Game = {
           if (!b.passed) {
             b.passed = true;
             api.addScore(10);
+            this.speedMod = Math.min(150, this.speedMod + 50);
             this.sparkle(b.x, b.y, this.CHEX[b.color]);
             this.burst(b.x, b.y, this.CHEX[b.color], 10, 130, 0.4, 3.5);
             api.sound.tone(1200, 0.05, 'sine', 0.08, 1600);
+            this.addFloat(b.x, b.y - 18, 'SPEED UP!', '#FF8F00');
             this.blocks.splice(i, 1);
             continue;
           }
         } else {
           this.blocks.splice(i, 1);
           this.burst(b.x, b.y, this.CHEX[b.color], 10, 130, 0.4, 3.5);
-          this.hitPlayer();
+          this.hitWrong();
           if (this.over) return;
           continue;
         }
@@ -1044,10 +1047,16 @@ const Game = {
       p.life -= dt;
       if (p.life <= 0) this.parts.splice(i, 1);
     }
+    for (let i = this.floats.length - 1; i >= 0; i--) {
+      const f = this.floats[i];
+      f.y -= 40 * dt;
+      f.life -= dt;
+      if (f.life <= 0) this.floats.splice(i, 1);
+    }
   },
 
   updateSnow(dt) {
-    const spd = this.scrollSpeed();
+    const spd = this.curSpeed();
     for (let i = 0; i < this.snow.length; i++) {
       const s = this.snow[i];
       s.y += (s.v + spd * 0.3) * dt;
@@ -1124,10 +1133,7 @@ const Game = {
 
   drawPlayer(ctx) {
     const P = this.P;
-    if (this.over && P.hp <= 0) return;
-
-    const blink = P.inv > 0 && Math.floor(P.inv * 12) % 2 === 0;
-    if (blink) return;
+    if (this.over) return;
 
     const c = this.CHEX[P.color];
     const rot = this.api.time * 0.5;
@@ -1179,18 +1185,25 @@ const Game = {
     ctx.fillStyle = 'rgba(129,212,250,0.3)';
     ctx.fillRect(0, 44, this.W, 2);
 
-    for (let i = 0; i < P.maxHp; i++) {
-      const hx = 22 + i * 26;
-      const hy = 20;
-      this.drawHex(ctx, hx, hy, 9, 0);
-      ctx.fillStyle = i < P.hp ? '#4FC3F7' : 'rgba(129,212,250,0.3)';
-      ctx.fill();
-      if (i < P.hp) {
-        this.drawHex(ctx, hx, hy - 1, 5, 0);
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.fill();
-      }
-    }
+    const spd = this.curSpeed();
+    const base = this.baseSpeed();
+    const minS = 50, maxS = 260;
+    const bw2 = 76;
+    const bx2 = 14;
+    const by2 = 12;
+    ctx.fillStyle = 'rgba(129,212,250,0.3)';
+    ctx.fillRect(bx2, by2, bw2, 8);
+    const frac = this.api.util.clamp((spd - minS) / (maxS - minS), 0, 1);
+    ctx.fillStyle = spd > base + 15 ? '#FFAB40' : (spd < base - 15 ? '#40C4FF' : '#81D4FA');
+    ctx.fillRect(bx2, by2, bw2 * frac, 8);
+    const mxp = bx2 + bw2 * ((base - minS) / (maxS - minS));
+    ctx.fillStyle = 'rgba(2,136,209,0.55)';
+    ctx.fillRect(mxp - 1, by2 - 2, 2, 12);
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(2,136,209,0.7)';
+    ctx.fillText('SPEED', bx2, by2 + 14);
 
     const mm = Math.floor(rem / 60);
     const ss = Math.floor(rem % 60);
@@ -1219,8 +1232,8 @@ const Game = {
     ctx.arc(bx + bw, by + 2, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    const chipX = 100;
-    const chipY = 38;
+    const chipX = this.W / 2 + 74;
+    const chipY = 40;
     this.drawHex(ctx, chipX, chipY, 7, 0);
     ctx.fillStyle = this.CHEX[P.color];
     ctx.fill();
@@ -1295,6 +1308,18 @@ const Game = {
     }
     ctx.globalAlpha = 1;
 
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < this.floats.length; i++) {
+      const f = this.floats[i];
+      const a = Math.max(0, f.life / f.max);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = f.c;
+      ctx.fillText(f.txt, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+
     ctx.restore();
 
     if (this.over) {
@@ -1336,6 +1361,7 @@ const Game = {
         ctx.fillText('ドラッグ:移動 タップ:色変換', W / 2, H - 140);
         ctx.font = '12px sans-serif';
         ctx.fillText('タップで 白→赤→青→緑', W / 2, H - 122);
+        ctx.fillText('同色で消すと加速 / 異色は減速', W / 2, H - 106);
         ctx.globalAlpha = 1;
       }
 
