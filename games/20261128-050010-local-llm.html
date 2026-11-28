@@ -49,6 +49,22 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
 .pbtn.on{background:rgba(120,150,255,.55)}
 .pbtn.dir{border-radius:14px;width:58px;height:58px;font-size:20px}
 .pbtn.act{width:78px;height:78px;font-size:15px;text-align:center;line-height:1.1;padding:4px}
+#stage.vpadOn{align-items:flex-start}
+#vpad{position:absolute;inset:0;touch-action:none}
+#vpad .vbase{position:absolute;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.6);background:rgba(30,40,80,.25);box-shadow:0 0 0 1px rgba(0,0,0,.25);pointer-events:none}
+#vpad .vbase.idle{opacity:.45}
+#vpad .vknob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;
+  background:rgba(255,255,255,.7);box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}
+#vpad .vbtn{position:absolute;width:82px;height:82px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:rgba(30,40,80,.32);border:2px solid rgba(255,255,255,.65);color:#fff;font-weight:800;font-size:15px;line-height:1.1;
+  text-align:center;padding:4px;text-shadow:0 1px 3px #000;box-shadow:0 0 0 1px rgba(0,0,0,.25);pointer-events:none}
+#vpad .vbtn.b1{right:18px;bottom:28px}
+#vpad .vbtn.b2{right:112px;bottom:78px;width:70px;height:70px;font-size:14px}
+#vpad .vbtn.on{background:rgba(255,255,255,.5);color:#123}
+.panel .guide{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:4px 0 6px}
+.panel .gi{display:flex;flex-direction:column;align-items:center;font-size:12px;color:#dfe6ff;max-width:170px}
+.panel .gi span{margin-top:2px;text-align:center;line-height:1.35}
 #topbar{flex:none;height:38px;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 8px}
 #topbar a,#topbar button{background:rgba(20,24,40,.7);border:1px solid #2c3554;color:#cfd7f5;font-size:13px;
   padding:6px 10px;border-radius:999px;text-decoration:none;cursor:pointer}
@@ -69,7 +85,7 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
   </div>
   <div id="pad"></div>
 </div>
-<script type="application/json" id="meta">{"id": "20261128-050010-local-llm", "title": "氷晶スライド", "summary": "自機は常に「白」の氷塊。同じ色同士は干渉しないため、敵氷塊の色に合わせて自機の色を瞬時に切り替え、貫通または回避を選択せよ。3分以内に「暖房コア」へ到達せよ。", "rules": ["自機は基本「白」だが、タップで赤・青・緑・白の順に瞬時（0.1秒）に切り替えられる。", "自機の色と敵氷塊の色が一致する場合、接触してもダメージを受けず貫通できる。", "自機の色と敵氷塊の色が異なる場合、接触するとダメージを受け、自機は元の「白」に戻る。", "HPが0になると凍結で即死。ステージの最下部にある「暖房コア」に到達すればクリア。", "3分以内にゴールに辿り着けない場合も、温度不足で凍結し失敗となる。"], "controls": {"スマホ": "ドラッグで氷塊を移動。タップで色を赤・青・緑・白の順に切り替え。", "PC": "マウスのドラッグまたは矢印キーで移動。クリックで色を赤・青・緑・白の順に切り替え。"}, "cfg": {"mode": "2d", "w": 360, "h": 640, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "赤"}, {"key": "B", "label": "青"}]}}</script>
+<script type="application/json" id="meta">{"id": "20261128-050010-local-llm", "title": "氷晶スライド", "summary": "自機は常に「白」の氷塊。同じ色同士は干渉しないため、敵氷塊の色に合わせて自機の色を瞬時に切り替え、貫通または回避を選択せよ。1分以内に「暖房コア」へ到達せよ。", "rules": ["自機は基本「白」だが、タップで赤・青・緑・白の順に瞬時（0.1秒）に切り替えられる。", "自機の色と敵氷塊の色が一致する場合、接触すると敵氷塊が破壊され、10点獲得できる。", "自機の色と敵氷塊の色が異なる場合、接触するとダメージを受け、自機は元の「白」に戻る。", "HPが0になると凍結で即死。ステージの最下部にある「暖房コア」に到達すればクリア。", "1分以内にゴールに辿り着けない場合も、温度不足で凍結し失敗となる。"], "controls": {"スマホ": "指を置いたまま動かす（ドラッグ）で氷塊を移動。タップで色を赤・青・緑・白の順に切り替え。", "PC": "マウスのドラッグまたは矢印キーで移動。クリックで色を赤・青・緑・白の順に切り替え。"}, "cfg": {"mode": "2d", "w": 360, "h": 640, "scheme": "ドラッグ", "buttons": [{"key": "A", "label": "赤"}, {"key": "B", "label": "青"}]}, "ui": {"pad": "floating", "guide": true, "bg": "light"}}</script>
 <script >
 "use strict";
 // ============================================================
@@ -78,6 +94,8 @@ html,body{height:100%;background:#0b0d14;color:#eef;overflow:hidden;
 // ============================================================
 const META = JSON.parse(document.getElementById("meta").textContent);
 const CFG = META.cfg;                       // { mode:'2d'|'3d', w, h, scheme, buttons:[{key,label}] }
+// 画面まわりの設定（無い＝以前に作ったゲームなので、以前と同じ動き）
+const UI = Object.assign({ pad: "classic", guide: false, bg: "dark" }, META.ui || {});
 const IS_TOUCH = (window.matchMedia && matchMedia("(pointer: coarse)").matches) || ("ontouchstart" in window);
 const __G = (window.__GAME__ = { state: "boot", frame: 0, score: 0, errors: [], startedAt: 0, endedAt: 0, plays: 0 });
 window.addEventListener("error", (e) => __G.errors.push(String(e.message || e)));
@@ -115,8 +133,8 @@ const Input = {
   left: false, right: false, up: false, down: false, a: false, b: false,
   leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, aPressed: false, bPressed: false,
   pointer: { x: 0, y: 0, nx: 0, ny: 0, down: false, pressed: false, released: false, dx: 0, dy: 0 },
-  swipe: null, tap: false,
-  _key: {}, _pad: {}, _one: false, _prev: {}, _pulse: {}, _ptrPressed: false, _ptrReleased: false,
+  swipe: null, tap: false, stick: { x: 0, y: 0 },
+  _key: {}, _pad: {}, _stick: null, _one: false, _prev: {}, _pulse: {}, _ptrPressed: false, _ptrReleased: false,
   _dx: 0, _dy: 0, _swipe: null, _tap: false, _ignoreUntilUp: false,
   _begin() {
     for (const k of [...DIRS, "a", "b"]) {
@@ -127,17 +145,25 @@ const Input = {
       this._prev[k] = held;
     }
     this._pulse = {};
+    // stick: 仮想パッドのスティックの傾き（-1..1）。使っていないときは方向の押しっぱなしから作る
+    if (this._stick) { this.stick.x = this._stick.x; this.stick.y = this._stick.y; }
+    else {
+      let sx = (this.right ? 1 : 0) - (this.left ? 1 : 0), sy = (this.down ? 1 : 0) - (this.up ? 1 : 0);
+      if (sx && sy) { sx *= Math.SQRT1_2; sy *= Math.SQRT1_2; }
+      this.stick.x = sx; this.stick.y = sy;
+    }
     const p = this.pointer;
     p.pressed = this._ptrPressed; p.released = this._ptrReleased; p.dx = this._dx; p.dy = this._dy;
     this.swipe = this._swipe; this.tap = this._tap;
     this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
   },
   _clear() {
-    this._key = {}; this._pad = {}; this._one = false; this._pulse = {};
+    this._key = {}; this._pad = {}; this._stick = null; this.stick.x = this.stick.y = 0; this._one = false; this._pulse = {};
     this._ptrPressed = this._ptrReleased = false; this._dx = this._dy = 0; this._swipe = null; this._tap = false;
     this.pointer.down = false;
     for (const k of [...DIRS, "a", "b"]) this._prev[k] = false;
     this._ignoreUntilUp = true;
+    if (typeof __vpad !== "undefined" && __vpad) __vpad.reset();
   },
 };
 
@@ -220,6 +246,7 @@ document.addEventListener("dblclick", (e) => e.preventDefault());
 // 仮想パッド（タッチ端末 かつ 操作=仮想パッド のときだけ表示）
 function __buildPad() {
   if (!(IS_TOUCH && CFG.scheme === "仮想パッド")) return;
+  if (UI.pad === "floating") return __buildFloatPad();
   padEl.classList.add("show");
   const dirs = [["up", "▲", 66, 14], ["left", "◀", 8, 72], ["right", "▶", 124, 72], ["down", "▼", 66, 130]];
   let html = "";
@@ -253,6 +280,100 @@ function __buildPad() {
   padEl.addEventListener("pointerup", up);
   padEl.addEventListener("pointercancel", up);
 }
+
+// 新しい仮想パッド：画面に半透明で重ねる。左半分のどこに指を置いてもそこがスティックの中心になり、右側はボタン
+let __vpad = null;
+function __buildFloatPad() {
+  stage.classList.add("vpadOn");
+  const vp = document.createElement("div");
+  vp.id = "vpad";
+  const btns = (CFG.buttons && CFG.buttons.length ? CFG.buttons : [{ key: "A", label: "A" }]).slice(0, 2);
+  vp.innerHTML = `<div class="vzone"></div><div class="vbase idle"><div class="vknob"></div></div>` +
+    btns.map((b, i) => `<div class="vbtn ${i ? "b2" : "b1"}" data-btn="${esc(b.key.toLowerCase())}">${esc(b.label || b.key)}</div>`).join("");
+  stage.insertBefore(vp, overlay);
+  const base = vp.querySelector(".vbase"), knob = vp.querySelector(".vknob");
+  const R = 48, DEAD = 0.3;
+  const st = { id: null, bx: 0, by: 0 }, owner = {};
+  const home = () => {
+    const r = vp.getBoundingClientRect();
+    return { x: Math.min(110, r.width * 0.25), y: r.height - Math.min(120, r.height * 0.2) };
+  };
+  const place = (bx, by, kx, ky) => {
+    base.style.left = bx + "px"; base.style.top = by + "px";
+    knob.style.transform = `translate(${kx}px,${ky}px)`;
+  };
+  const rest = () => { const h = home(); place(h.x, h.y, 0, 0); base.classList.add("idle"); };
+  const refresh = () => {
+    const on = {};
+    const sx = Input._stick ? Input._stick.x : 0, sy = Input._stick ? Input._stick.y : 0;
+    if (sx < -DEAD) on.left = true;
+    if (sx > DEAD) on.right = true;
+    if (sy < -DEAD) on.up = true;
+    if (sy > DEAD) on.down = true;
+    for (const id in owner) if (owner[id]) on[owner[id]] = true;
+    Input._pad = on;
+    vp.querySelectorAll(".vbtn").forEach((el) => el.classList.toggle("on", !!on[el.dataset.btn]));
+  };
+  // 右側に触れたら、いちばん近いボタン（多少ずれても押せる）
+  const nearest = (cx, cy) => {
+    let best = null, bd = 1e9;
+    vp.querySelectorAll(".vbtn").forEach((el) => {
+      const r = el.getBoundingClientRect(), d = Math.hypot(cx - (r.left + r.width / 2), cy - (r.top + r.height / 2));
+      if (d < bd) { bd = d; best = el.dataset.btn; }
+    });
+    return best;
+  };
+  const local = (ev) => { const r = vp.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top, w: r.width }; };
+  const moveStick = (x, y) => {
+    let dx = x - st.bx, dy = y - st.by;
+    const len = Math.hypot(dx, dy);
+    if (len > R) { st.bx += dx / len * (len - R); st.by += dy / len * (len - R); dx = x - st.bx; dy = y - st.by; }  // 中心が指についてくる
+    Input._stick = { x: U.clamp(dx / R, -1, 1), y: U.clamp(dy / R, -1, 1) };
+    place(st.bx, st.by, dx, dy);
+  };
+  vp.addEventListener("pointerdown", (ev) => {
+    Sound.unlock(); ev.preventDefault();
+    ev.stopPropagation();   // 下のゲーム画面に指を取られないように
+    if (__G.state !== "playing" || __G.paused) return;
+    try { vp.setPointerCapture(ev.pointerId); } catch (_) {}
+    const p = local(ev);
+    if (p.x < p.w * 0.5 && st.id === null) {
+      st.id = ev.pointerId; st.bx = p.x; st.by = p.y;
+      base.classList.remove("idle");
+      Input._stick = { x: 0, y: 0 };
+      place(p.x, p.y, 0, 0);
+    } else if (p.x >= p.w * 0.5) {
+      owner[ev.pointerId] = nearest(ev.clientX, ev.clientY);
+      if (owner[ev.pointerId]) Input._pulse[owner[ev.pointerId]] = true;   // ごく短いタップでも押したことにする
+    }
+    refresh();
+  });
+  vp.addEventListener("pointermove", (ev) => {
+    if (ev.pointerId === st.id) { const p = local(ev); moveStick(p.x, p.y); refresh(); }
+    else if (ev.pointerId in owner) { owner[ev.pointerId] = nearest(ev.clientX, ev.clientY); refresh(); }
+  });
+  const up = (ev) => {
+    if (ev.pointerId === st.id) { st.id = null; Input._stick = null; rest(); }
+    delete owner[ev.pointerId];
+    refresh();
+  };
+  vp.addEventListener("pointerup", up);
+  vp.addEventListener("pointercancel", up);
+  window.addEventListener("resize", () => setTimeout(() => { if (st.id === null) rest(); }, 60));
+  __vpad = { vp, home, reset: () => { st.id = null; for (const k in owner) delete owner[k]; rest(); refresh(); } };
+  rest();
+}
+// 自動テスト用：仮想パッドの各方向・ボタンを押すときの、指を置く位置（x, y）とずらす先（mx, my）
+__G.padPoints = function () {
+  const pt = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+  if (__vpad) {
+    const r = __vpad.vp.getBoundingClientRect(), h = __vpad.home(), x = r.left + h.x, y = r.top + h.y, d = 40;
+    const out = [["left", -d, 0], ["right", d, 0], ["up", 0, -d], ["down", 0, d]].map(([k, dx, dy]) => ({ k, x, y, mx: x + dx, my: y + dy }));
+    __vpad.vp.querySelectorAll(".vbtn").forEach((el) => { const p = pt(el); out.push({ k: el.dataset.btn, x: p.x, y: p.y, mx: p.x, my: p.y }); });
+    return out;
+  }
+  return [...document.querySelectorAll("#pad .pbtn")].map((el) => { const p = pt(el); return { k: el.dataset.btn, x: p.x, y: p.y, mx: p.x, my: p.y }; });
+};
 
 // ---------------- 音（Web Audio で合成。外部ファイル不要） ----------------
 const Sound = {
@@ -349,13 +470,40 @@ function __best() { try { return +localStorage.getItem("mgf:best:" + META.id) ||
 function __saveBest(s) { try { if (s > __best()) localStorage.setItem("mgf:best:" + META.id, s); } catch (_) {} }
 const START_HINT = IS_TOUCH ? "画面をタップしてスタート" : "クリック / スペースキーでスタート";
 
+// タイトル画面の、図つきの操作案内（操作タイプごと）
+const __FINGER = `<circle cx="0" cy="0" r="9" fill="#ffd27a" stroke="#7a5200" stroke-width="2"/>`;
+function __guideHtml() {
+  const sc = CFG.scheme, svg = (body) => `<svg viewBox="0 0 120 70" width="120" height="70" aria-hidden="true">${body}</svg>`;
+  const scr = `<rect x="3" y="3" width="114" height="64" rx="8" fill="#1d2440" stroke="#4a5785" stroke-width="2"/>`;
+  let items = [];
+  if (!IS_TOUCH) {
+    const key = (x, y, t, w = 22) => `<rect x="${x}" y="${y}" width="${w}" height="20" rx="4" fill="#26304f" stroke="#8fa0d8"/><text x="${x + w / 2}" y="${y + 14}" font-size="11" fill="#eef" text-anchor="middle">${t}</text>`;
+    if (sc === "ワンボタン") items = [[svg(key(30, 25, "スペース", 60)), "スペース / クリック"]];
+    else if (sc === "ドラッグ") items = [[svg(scr + `<path d="M30 50 C50 20 70 50 90 22" stroke="#9fd" stroke-width="3" fill="none" stroke-dasharray="5 4"/>` + `<g transform="translate(90 22)">${__FINGER}</g>`), "押したまま動かす（ドラッグ）"], [svg(key(49, 8, "▲") + key(25, 32, "◀") + key(49, 32, "▼") + key(73, 32, "▶")), "矢印キーでも動く"]];
+    else if (sc === "タップ/スワイプ") items = [[svg(key(49, 8, "▲") + key(25, 32, "◀") + key(49, 32, "▼") + key(73, 32, "▶")), "矢印キー＝払う方向"], [svg(scr + `<g transform="translate(60 35)">${__FINGER}</g>`), "クリック＝タップ"]];
+    else items = [[svg(key(26, 8, "▲") + key(2, 32, "◀") + key(26, 32, "▼") + key(50, 32, "▶") + key(86, 14, "Z") + key(86, 40, "X")), "矢印キーで移動・Z / X でボタン"]];
+  } else if (sc === "ワンボタン") {
+    items = [[svg(scr + `<circle cx="60" cy="35" r="16" fill="none" stroke="#9fd" stroke-width="2"><animate attributeName="r" values="10;22;10" dur="1.2s" repeatCount="indefinite"/></circle><g transform="translate(60 35)">${__FINGER}</g>`), "画面のどこでも タップ／長押し"]];
+  } else if (sc === "ドラッグ") {
+    items = [[svg(scr + `<path d="M25 52 C45 18 75 54 95 22" stroke="#9fd" stroke-width="3" fill="none" stroke-dasharray="5 4"/><g>${__FINGER}<animateMotion dur="2s" repeatCount="indefinite" path="M25 52 C45 18 75 54 95 22"/></g>`), "指を置いたまま 動かす（ドラッグ）"]];
+  } else if (sc === "タップ/スワイプ") {
+    items = [[svg(scr + `<circle cx="60" cy="35" r="14" fill="none" stroke="#9fd" stroke-width="2"/><g transform="translate(60 35)">${__FINGER}</g>`), "タップ＝軽く触る"],
+             [svg(scr + `<path d="M28 35 H88" stroke="#9fd" stroke-width="4"/><path d="M86 28 L99 35 L86 42 z" fill="#9fd"/><g>${__FINGER}<animateMotion dur="1.1s" repeatCount="indefinite" keyTimes="0;0.4;1" keyPoints="0;1;1" path="M24 35 H68"/></g>`), "スワイプ＝さっと払う（1回で1回動く）"]];
+  } else {
+    const fl = UI.pad === "floating";
+    items = [[svg(scr + (fl ? `<line x1="60" y1="4" x2="60" y2="66" stroke="#4a5785" stroke-dasharray="3 3"/><circle cx="32" cy="38" r="16" fill="none" stroke="#9fd" stroke-width="2"/><g transform="translate(40 34)">${__FINGER}</g><circle cx="94" cy="46" r="11" fill="#2b3a70" stroke="#cfe" stroke-width="2"/><text x="94" y="50" font-size="10" fill="#fff" text-anchor="middle">A</text>`
+      : `<text x="30" y="44" font-size="22" fill="#9fd" text-anchor="middle">✚</text><circle cx="90" cy="38" r="11" fill="#2b3a70" stroke="#cfe" stroke-width="2"/><text x="90" y="42" font-size="10" fill="#fff" text-anchor="middle">A</text>`)),
+      fl ? "左半分を指でなぞって移動・右下のボタン" : "下の十字キーで移動・右のボタン"]];
+  }
+  return `<div class="guide">${items.map(([g, t]) => `<div class="gi">${g}<span>${esc(t)}</span></div>`).join("")}</div>`;
+}
 function __showTitle() {
   const ctl = (META.controls || {})[IS_TOUCH ? "スマホ" : "PC"] || "";
   const rules = (META.rules || []).map((r) => `<li>${esc(r)}</li>`).join("");
   overlay.innerHTML = `<div class="panel">
     <h1>${esc(META.title)}</h1><p>${esc(META.summary)}</p>
     <div class="box"><b>ルール</b><ul>${rules}</ul></div>
-    <div class="box"><b>操作（${IS_TOUCH ? "スマホ" : "PC"}）</b><p>${esc(ctl)}</p></div>
+    <div class="box"><b>操作（${IS_TOUCH ? "スマホ" : "PC"}）</b>${UI.guide ? __guideHtml() : ""}<p>${esc(ctl)}</p></div>
     ${__best() ? `<p class="best">ベスト: ${__best()}</p>` : ""}
     <p class="blink" style="margin-top:10px;font-weight:700">${START_HINT}</p></div>`;
   overlay.classList.remove("hidden");
@@ -520,7 +668,8 @@ function __boot(game) {
   } catch (e) { return __fail("boot", e); }
   __buildPad();
   __layout();
-  if (CFG.mode !== "3d") { ctx2d.fillStyle = "#000"; ctx2d.fillRect(0, 0, CFG.w, CFG.h); }
+  if (UI.bg === "light") canvas.style.background = "#dfe8f3";
+  if (CFG.mode !== "3d") { ctx2d.fillStyle = UI.bg === "light" ? "#dfe8f3" : "#000"; ctx2d.fillRect(0, 0, CFG.w, CFG.h); }
   __showTitle();
   requestAnimationFrame(__frame);
 }
@@ -558,8 +707,8 @@ const Game = {
     this.corePulse = 0;
 
     this.dist = 0;
-    this.STAGE_LEN = 19500;
-    this.TIME_LIMIT = 180;
+    this.STAGE_LEN = 6500;
+    this.TIME_LIMIT = 60;
 
     this.spawnT = 1.4;
     this.shake = 0;
@@ -588,13 +737,13 @@ const Game = {
   },
 
   scrollSpeed() {
-    return this.api.time >= 120 ? 150 : 120;
+    return this.api.time >= 40 ? 150 : 120;
   },
 
   phase() {
     const t = this.api.time;
-    if (t < 60) return 1;
-    if (t < 120) return 2;
+    if (t < 20) return 1;
+    if (t < 40) return 2;
     return 3;
   },
 
@@ -743,13 +892,13 @@ const Game = {
       api.sound.tone(660, 0.15, 'sine', 0.15, 990);
     }
 
-    if (t > 150 && !this.warnPlayed) {
+    if (t > 45 && !this.warnPlayed) {
       this.warnPlayed = true;
       this.warnT = 3.0;
     }
 
-    if (t > 170) {
-      this.freezeT = Math.min(1, (t - 170) / 10);
+    if (t > 50) {
+      this.freezeT = Math.min(1, (t - 50) / 10);
     } else {
       this.freezeT = 0;
     }
@@ -830,10 +979,12 @@ const Game = {
         if (P.color === b.color) {
           if (!b.passed) {
             b.passed = true;
-            b.flash = 0.2;
             api.addScore(10);
             this.sparkle(b.x, b.y, this.CHEX[b.color]);
+            this.burst(b.x, b.y, this.CHEX[b.color], 10, 130, 0.4, 3.5);
             api.sound.tone(1200, 0.05, 'sine', 0.08, 1600);
+            this.blocks.splice(i, 1);
+            continue;
           }
         } else {
           this.blocks.splice(i, 1);
